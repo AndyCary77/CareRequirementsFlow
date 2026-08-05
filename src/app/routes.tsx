@@ -19,6 +19,8 @@ import { LandingPage } from './components/LandingPage';
 import { CustomersListPage } from './components/customer/CustomersListPage';
 import { AboutMePage, AboutMeSubnav } from './components/customer/AboutMePage';
 import { CareBridgePage, CareBridgeProvider, CareBridgeSubnav } from './components/customer/CareBridgePage';
+import { TagsManagementPage } from './components/office/TagsManagementPage';
+import { TagTypeDetailPage } from './components/office/TagTypeDetailPage';
 import { CustomerProvider } from './data/CustomerContext';
 import SideNav from './components/layout/SideNav';
 import TopNav from './components/layout/TopNav';
@@ -152,6 +154,22 @@ function ScheduleLayout() {
   );
 }
 
+function OfficeLayout() {
+  return (
+    <AppShell>
+      <TagsManagementPage />
+    </AppShell>
+  );
+}
+
+function TagTypeDetailLayout() {
+  return (
+    <AppShell>
+      <TagTypeDetailPage />
+    </AppShell>
+  );
+}
+
 function EmployeeLayout() {
   return (
     <AppShell infoBar={<EmployeeInfo />}>
@@ -222,6 +240,14 @@ export const router = createBrowserRouter([
   {
     path: "/schedule",
     Component: ScheduleLayout,
+  },
+  {
+    path: "/office/tags",
+    Component: OfficeLayout,
+  },
+  {
+    path: "/office/tags/:tagTypeId",
+    Component: TagTypeDetailLayout,
   },
   // ─── Component isolation demos ───────────────────────────────────────────────
   {

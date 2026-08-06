@@ -5,29 +5,32 @@ import { Document } from '../../../data/mock-documents';
 interface DocumentFiltersProps {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  statusFilter: 'all' | 'success' | 'danger' | 'warning';
-  setStatusFilter: (status: 'all' | 'success' | 'danger' | 'warning') => void;
+  statusFilter: 'all' | 'success' | 'danger' | 'warning' | 'draft';
+  setStatusFilter: (status: 'all' | 'success' | 'danger' | 'warning' | 'draft') => void;
   dateFilter: string;
   setDateFilter: (range: string) => void;
   categoryFilter: string;
   setCategoryFilter: (category: string) => void;
   documentCount: number;
   allDocuments: Document[];
+  /** The Documents tab (a fixed template pack) has no meaningful category to filter by — only Assessments does. */
+  showCategoryFilter?: boolean;
 }
 
-export function DocumentFilters({ 
-  searchQuery, 
-  setSearchQuery, 
-  statusFilter, 
+export function DocumentFilters({
+  searchQuery,
+  setSearchQuery,
+  statusFilter,
   setStatusFilter,
   dateFilter,
   setDateFilter,
   categoryFilter,
   setCategoryFilter,
   documentCount,
-  allDocuments
+  allDocuments,
+  showCategoryFilter = true,
 }: DocumentFiltersProps) {
-  const hasActiveFilters = searchQuery !== '' || statusFilter !== 'all' || dateFilter !== 'all' || categoryFilter !== 'all';
+  const hasActiveFilters = searchQuery !== '' || statusFilter !== 'all' || dateFilter !== 'all' || (showCategoryFilter && categoryFilter !== 'all');
 
   const clearAllFilters = () => {
     setSearchQuery('');
@@ -74,7 +77,7 @@ export function DocumentFilters({
   };
 
   // Calculate counts for each status filter option
-  const getStatusCount = (status: 'all' | 'success' | 'danger' | 'warning'): number => {
+  const getStatusCount = (status: 'all' | 'success' | 'danger' | 'warning' | 'draft'): number => {
     return allDocuments.filter((doc) => {
       const matchesSearch = 
         doc.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -155,6 +158,7 @@ export function DocumentFilters({
           <option value="success">Complete ({getStatusCount('success')})</option>
           <option value="danger">Incomplete ({getStatusCount('danger')})</option>
           <option value="warning">Review required ({getStatusCount('warning')})</option>
+          <option value="draft">Draft ({getStatusCount('draft')})</option>
         </select>
         <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none text-xs">
           ▼
@@ -184,32 +188,34 @@ export function DocumentFilters({
       </div>
 
       {/* Category Filter */}
-      <div className="relative">
-        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
-          <Filter className="w-3 h-3" />
+      {showCategoryFilter && (
+        <div className="relative">
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+            <Filter className="w-3 h-3" />
+          </div>
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="w-44 pl-8 pr-8 py-2 border border-gray-300 rounded-md text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#5c1c85] appearance-none cursor-pointer hover:bg-gray-50 transition-colors"
+          >
+            <option value="all">All Categories</option>
+            <option value="Accident">Accident ({getCategoryCount('Accident')})</option>
+            <option value="Complaint">Complaint ({getCategoryCount('Complaint')})</option>
+            <option value="Fall Tracking">Fall Tracking ({getCategoryCount('Fall Tracking')})</option>
+            <option value="Incident">Incident ({getCategoryCount('Incident')})</option>
+            <option value="Infection Control">Infection Control ({getCategoryCount('Infection Control')})</option>
+            <option value="Information Governance">Information Governance ({getCategoryCount('Information Governance')})</option>
+            <option value="Medication">Medication ({getCategoryCount('Medication')})</option>
+            <option value="Safe Guarding">Safe Guarding ({getCategoryCount('Safe Guarding')})</option>
+            <option value="Security">Security ({getCategoryCount('Security')})</option>
+            <option value="Violence/Aggression">Violence/Aggression ({getCategoryCount('Violence/Aggression')})</option>
+            <option value="Other">Other ({getCategoryCount('Other')})</option>
+          </select>
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none text-xs">
+            ▼
+          </div>
         </div>
-        <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          className="w-44 pl-8 pr-8 py-2 border border-gray-300 rounded-md text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#5c1c85] appearance-none cursor-pointer hover:bg-gray-50 transition-colors"
-        >
-          <option value="all">All Categories</option>
-          <option value="Accident">Accident ({getCategoryCount('Accident')})</option>
-          <option value="Complaint">Complaint ({getCategoryCount('Complaint')})</option>
-          <option value="Fall Tracking">Fall Tracking ({getCategoryCount('Fall Tracking')})</option>
-          <option value="Incident">Incident ({getCategoryCount('Incident')})</option>
-          <option value="Infection Control">Infection Control ({getCategoryCount('Infection Control')})</option>
-          <option value="Information Governance">Information Governance ({getCategoryCount('Information Governance')})</option>
-          <option value="Medication">Medication ({getCategoryCount('Medication')})</option>
-          <option value="Safe Guarding">Safe Guarding ({getCategoryCount('Safe Guarding')})</option>
-          <option value="Security">Security ({getCategoryCount('Security')})</option>
-          <option value="Violence/Aggression">Violence/Aggression ({getCategoryCount('Violence/Aggression')})</option>
-          <option value="Other">Other ({getCategoryCount('Other')})</option>
-        </select>
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none text-xs">
-          ▼
-        </div>
-      </div>
+      )}
 
       {/* Clear All Filters Button */}
       {hasActiveFilters && (

@@ -11,7 +11,11 @@ const activeTabClass =
   'px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 bg-purple-50 text-[rgb(154,38,214)] border-[rgb(154,38,214)]';
 
 function tabClass(pathname: string, path: string) {
-  return pathname === path ? activeTabClass : inactiveTabClass;
+  // Match sub-routes too (e.g. Documents' click-throughs at /documents/care-plan
+  // and /documents/recording/:id) so the tab stays highlighted there, not just
+  // on the tab's own exact path.
+  const active = pathname === path || pathname.startsWith(`${path}/`);
+  return active ? activeTabClass : inactiveTabClass;
 }
 
 // ─── Dropdown tab ──────────────────────────────────────────────────────────────

@@ -10,6 +10,8 @@ import { EmployeeRecordsPage } from './components/employee/EmployeeRecordsPage';
 import { CustomerDetailsPage } from './components/customer/CustomerDetailsPage';
 import { CareNotes } from './components/customer/carenotes/CareNotes';
 import { DocumentsPage } from './components/customer/documents/DocumentsPage';
+import { CarePlanDocumentPage } from './components/customer/documents/CarePlanDocumentPage';
+import { RecordingDocumentPage } from './components/customer/documents/RecordingDocumentPage';
 import { CareManagementPage } from './components/customer/caremanagement/CareManagementPage';
 import { CareManagementProvider } from './components/customer/caremanagement/CareManagementContext';
 import { CareManagementSubnav } from './components/customer/caremanagement/CareManagementSubnav';
@@ -110,6 +112,30 @@ function DocumentsLayout() {
       <AppShell infoBar={<CustomerInfo />}>
         <DocumentsPage />
       </AppShell>
+    </CustomerProvider>
+  );
+}
+
+function CarePlanDocumentLayout() {
+  return (
+    <CustomerProvider>
+      <CareBridgeProvider>
+        <AppShell infoBar={<CustomerInfo />}>
+          <CarePlanDocumentPage />
+        </AppShell>
+      </CareBridgeProvider>
+    </CustomerProvider>
+  );
+}
+
+function RecordingDocumentLayout() {
+  return (
+    <CustomerProvider>
+      <CareBridgeProvider>
+        <AppShell infoBar={<CustomerInfo />}>
+          <RecordingDocumentPage />
+        </AppShell>
+      </CareBridgeProvider>
     </CustomerProvider>
   );
 }
@@ -224,6 +250,14 @@ export const router = createBrowserRouter([
   {
     path: "/customers/:customerId/documents",
     Component: DocumentsLayout,
+  },
+  {
+    path: "/customers/:customerId/documents/care-plan",
+    Component: CarePlanDocumentLayout,
+  },
+  {
+    path: "/customers/:customerId/documents/recording/:recordingId",
+    Component: RecordingDocumentLayout,
   },
   {
     path: "/customers/:customerId/marchart",

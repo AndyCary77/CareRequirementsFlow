@@ -1,10 +1,22 @@
 import React from 'react';
-import { Check, X, ChevronRight, AlertCircle, CalendarX } from 'lucide-react';
+import { Link } from 'react-router';
+import { Check, Minus, ChevronRight, AlertCircle, CalendarX, PenLine, FileText } from 'lucide-react';
 import { Document } from '../../../data/mock-documents';
 
 interface DocumentListProps {
   documents: Document[];
 }
+
+// "Incomplete" just means not started/finished yet, not a problem — a soft
+// tint of the requested #e97b35 orange (light tint for the pill bg, a
+// darkened shade of the same hue for readable text) rather than red, so it
+// doesn't read as alarming.
+const STATUS_CONFIG: Record<Document['status'], { Icon: typeof Check; circleBg: string; label: string; pill: string }> = {
+  success: { Icon: Check, circleBg: 'bg-green-500', label: 'Complete', pill: 'bg-green-100 text-green-700' },
+  danger: { Icon: Minus, circleBg: 'bg-[#e97b35]', label: 'Incomplete', pill: 'bg-[#fdf2eb] text-[#975022]' },
+  warning: { Icon: CalendarX, circleBg: 'bg-amber-500', label: 'Review required', pill: 'bg-amber-100 text-amber-700' },
+  draft: { Icon: PenLine, circleBg: 'bg-[rgb(154,38,214)]', label: 'Draft', pill: 'bg-purple-100 text-[rgb(109,27,152)]' },
+};
 
 export function DocumentList({ documents }: DocumentListProps) {
   if (documents.length === 0) {
@@ -21,52 +33,64 @@ export function DocumentList({ documents }: DocumentListProps) {
 
   return (
     <div className="flex flex-col">
-      {documents.map((doc) => (
-        <div 
-          key={doc.id} 
-          className="group flex items-center justify-between px-4 h-24 hover:bg-gray-50 transition-colors cursor-pointer border-l-4 border-l-transparent hover:border-l-[#5c1c85] border-b !border-b-gray-200 last:border-b-0"
-        >
-          {/* Left Side: Status + Info */}
-          <div className="flex items-center gap-4">
-            {/* Status Icon */}
-            <div>
-              {doc.status === 'success' ? (
-                <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center shadow-sm">
-                  <Check className="w-4 h-4 text-white" strokeWidth={3} />
-                </div>
-              ) : doc.status === 'warning' ? (
-                <div className="w-6 h-6 rounded-full bg-red-500 flex items-center justify-center shadow-sm">
-                  <CalendarX className="w-4 h-4 text-white" strokeWidth={2.5} />
-                </div>
-              ) : (
-                <div className="w-6 h-6 rounded-full bg-red-500 flex items-center justify-center shadow-sm">
-                  <X className="w-4 h-4 text-white" strokeWidth={3} />
-                </div>
-              )}
-            </div>
+      {documents.map((doc) => {
+        // Grid, not flex — the status column's width is enforced by the track,
+        // not by the badge, so each badge can size to its own content (no more
+        // manually fitting pill width to the longest label) while still lining
+        // up cleanly under one another down the list.
+        const rowClassName =
+          'group grid grid-cols-[1fr_9rem_auto_20px] items-center gap-6 px-4 h-24 hover:bg-gray-50 transition-colors cursor-pointer border-l-4 border-l-transparent hover:border-l-[#5c1c85] border-b !border-b-gray-200 last:border-b-0';
 
-            {/* Text Content */}
-            <div className="flex flex-col">
-              <span className="text-gray-900 font-bold text-base leading-snug">
-                {doc.title}
-              </span>
-              {doc.subtitle && (
-                <span className="text-gray-500 text-sm italic mt-0.5">
-                  {doc.subtitle}
+        const { Icon, circleBg, label, pill } = STATUS_CONFIG[doc.status];
+
+        const content = (
+          <>
+            {/* Title + subtitle */}
+            <div className="flex items-start gap-2.5 min-w-0">
+              <FileText className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
+              <div className="flex flex-col min-w-0">
+                <span className="text-gray-900 font-bold text-base leading-snug truncate">
+                  {doc.title}
                 </span>
-              )}
+                {doc.subtitle && (
+                  <span className="text-gray-500 text-sm italic mt-0.5 truncate">
+                    {doc.subtitle}
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
 
-          {/* Right Side: Date + Chevron */}
-          <div className="flex items-center gap-6">
+            {/* Status column */}
+            <span className={`inline-flex items-center gap-1.5 pl-1 pr-2.5 py-1 rounded-full text-xs font-semibold uppercase whitespace-nowrap w-fit ${pill}`}>
+              <span className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${circleBg}`}>
+                <Icon className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+              </span>
+              {label}
+            </span>
+
+            {/* Date(s) */}
             <div className="text-right hidden sm:block">
-              <span className="text-gray-500 text-sm">Created Date {doc.createdDate}</span>
+              {doc.reviewDate && (
+                <div className="text-gray-500 text-sm">Review Date {doc.reviewDate}</div>
+              )}
+              <div className="text-gray-500 text-sm">Created Date {doc.createdDate}</div>
             </div>
+
+            {/* Chevron */}
             <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-[#5c1c85] transition-colors" />
+          </>
+        );
+
+        return doc.to ? (
+          <Link key={doc.id} to={doc.to} className={rowClassName}>
+            {content}
+          </Link>
+        ) : (
+          <div key={doc.id} className={rowClassName}>
+            {content}
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

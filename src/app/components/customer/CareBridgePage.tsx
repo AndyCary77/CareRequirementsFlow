@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { FileText, Target, ListChecks, Sparkles, Send, Mic, ArrowRight, Info, Pencil, ThumbsUp, ThumbsDown, Copy, ChevronDown, Play, Pause, Download, X, Check, Search } from 'lucide-react';
 import { Button } from '../buttons/Button';
 import {
@@ -909,7 +910,7 @@ interface SecondaryDocument {
   sections: AssessmentSection[];
 }
 
-interface Recording {
+export interface Recording {
   id: string;
   label: string; // "Initial Assessment", "6-Week Review" — the visit/cadence type
   recordingMeta: string;
@@ -926,6 +927,8 @@ interface Recording {
   secondary: SecondaryDocument[];
   chat: ChatMessage[];
   edits: { focus: number };
+  /** Flags this recording as not yet opened, for the "New" badge on the Documents › CareBridge list. */
+  isNew?: boolean;
 }
 
 const RECORDINGS: Record<string, Recording[]> = {
@@ -986,11 +989,12 @@ const RECORDINGS: Record<string, Recording[]> = {
       ],
       chat: EDITH_CHAT,
       edits: { focus: 3 },
+      isNew: true,
     },
   ],
 };
 
-function resolveRecordings(customerId: string): Recording[] {
+export function resolveRecordings(customerId: string): Recording[] {
   return RECORDINGS[customerId] ?? RECORDINGS['arthur-barrington'];
 }
 
@@ -1714,6 +1718,18 @@ function CarePlanMultiDocView({ recording }: { recording: Recording }) {
   );
 }
 
+/**
+ * Standalone Care & Support Plan view for the Documents tab click-through —
+ * reuses the exact same multi-doc view CareBridge shows for a Care Plan-focus
+ * recording, rather than building a second copy of this content. Needs
+ * `CustomerProvider` + `CareBridgeProvider` mounted above it (see routes.tsx).
+ */
+export function CarePlanDocumentView() {
+  const customer = useCustomer();
+  const recording = resolveRecording(customer.id, 'initial');
+  return <CarePlanMultiDocView recording={recording} />;
+}
+
 // ─── This Recording — focus document + secondary documents from the same visit ──
 
 function RecordingSummaryView({ recording }: { recording: Recording }) {
@@ -2011,6 +2027,17 @@ function TranscriptView({ recording, customer }: { recording: Recording; custome
   );
 }
 
+/**
+ * Standalone "this recording" view for the Documents tab's CareBridge list —
+ * just the recording + its transcript (no draft-content toggle; reviewing
+ * the AI-drafted document itself stays on the main CareBridge tab).
+ */
+export function RecordingDocumentView({ recordingId }: { recordingId: string }) {
+  const customer = useCustomer();
+  const recording = resolveRecording(customer.id, recordingId);
+  return <TranscriptView recording={recording} customer={customer} />;
+}
+
 // ─── Chat panel ───────────────────────────────────────────────────────────────
 
 function ChatPanel({ chat, onClose }: { chat: ChatMessage[]; onClose: () => void }) {
@@ -2178,9 +2205,12 @@ const CareBridgeContext = createContext<{
 
 export function CareBridgeProvider({ children }: { children: React.ReactNode }) {
   const customer = useCustomer();
+  const [searchParams] = useSearchParams();
   const [tab, setTab] = useState<Tab>('recording');
-  const [view, setView] = useState<View>('summary');
-  const [recordingId, setRecordingId] = useState('initial');
+  // A deep link from elsewhere (e.g. the Documents tab's CareBridge list) can
+  // land straight on a specific recording/view via ?recording=&view=.
+  const [view, setView] = useState<View>((searchParams.get('view') as View) || 'summary');
+  const [recordingId, setRecordingId] = useState(searchParams.get('recording') || 'initial');
   // Descoped from the default view for now — see the floating launcher in
   // CareBridgePage. Hidden by default; the reviewer opts back in per visit.
   const [chatOpen, setChatOpen] = useState(false);
@@ -2188,8 +2218,13 @@ export function CareBridgeProvider({ children }: { children: React.ReactNode }) 
   // Recording ids (e.g. "initial") aren't unique across customers, and this
   // provider stays mounted across a customer switch (the route only changes
   // the :customerId param) — reset back to the default recording so a
-  // selection from the previous customer doesn't linger.
+  // selection from the previous customer doesn't linger. Guarded to skip the
+  // initial mount (via the ref) so a ?recording= deep link isn't immediately
+  // stomped back to 'initial' right after it's read above.
+  const mountedCustomerId = useRef(customer.id);
   useEffect(() => {
+    if (mountedCustomerId.current === customer.id) return;
+    mountedCustomerId.current = customer.id;
     setRecordingId('initial');
   }, [customer.id]);
 

@@ -34,12 +34,16 @@ export function DocumentList({ documents }: DocumentListProps) {
   return (
     <div className="flex flex-col">
       {documents.map((doc) => {
-        // Grid, not flex — the status column's width is enforced by the track,
-        // not by the badge, so each badge can size to its own content (no more
-        // manually fitting pill width to the longest label) while still lining
-        // up cleanly under one another down the list.
+        // Grid, not flex — each row is its own independent grid (it has to be,
+        // since the whole row is one clickable Link), so an `auto` title track
+        // sizes to THAT row's own title and the badge column starts at a
+        // different x per row — "staggered". A fixed width for the title
+        // column instead means every row shares the exact same track sizes,
+        // so the badge column lines up at one constant x down the whole list
+        // — close to the titles rather than off at the far right, but still
+        // a true column.
         const rowClassName =
-          'group grid grid-cols-[1fr_9rem_auto_20px] items-center gap-6 px-4 h-24 hover:bg-gray-50 transition-colors cursor-pointer border-l-4 border-l-transparent hover:border-l-[#5c1c85] border-b !border-b-gray-200 last:border-b-0';
+          'group grid grid-cols-[22rem_auto_1fr_auto_20px] items-center gap-6 px-4 h-24 hover:bg-gray-50 transition-colors cursor-pointer border-l-4 border-l-transparent hover:border-l-[#5c1c85] border-b !border-b-gray-200 last:border-b-0';
 
         const { Icon, circleBg, label, pill } = STATUS_CONFIG[doc.status];
 
@@ -60,13 +64,16 @@ export function DocumentList({ documents }: DocumentListProps) {
               </div>
             </div>
 
-            {/* Status column */}
+            {/* Status column — sits right after the title now, not off in the middle of the row. */}
             <span className={`inline-flex items-center gap-1.5 pl-1 pr-2.5 py-1 rounded-full text-xs font-semibold uppercase whitespace-nowrap w-fit ${pill}`}>
               <span className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${circleBg}`}>
                 <Icon className="w-2.5 h-2.5 text-white" strokeWidth={3} />
               </span>
               {label}
             </span>
+
+            {/* Flexible spacer — absorbs the leftover space so date(s) + chevron stay pinned right. */}
+            <div />
 
             {/* Date(s) */}
             <div className="text-right hidden sm:block">

@@ -1,6 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router';
-import { FolderPlus, Plus, Sparkles } from 'lucide-react';
+import { FolderPlus, Plus } from 'lucide-react';
+import passgeniusPurpleUrl from '../../icons/passgenius-purple.svg';
+import { triggerPassGeniusHover } from '../../icons/passgenius';
 import { CUSTOMER_DOCUMENTS, ASSESSMENT_TEMPLATES } from '../../../data/mock-documents';
 import { useCustomer } from '../../../data/CustomerContext';
 import { Button } from '../../buttons/Button';
@@ -19,6 +21,7 @@ export function DocumentsPage() {
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'documents');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'success' | 'danger' | 'warning' | 'draft'>('all');
+  const passgeniusRef = useRef<HTMLObjectElement>(null);
   const [dateFilter, setDateFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
 
@@ -63,22 +66,25 @@ export function DocumentsPage() {
   }, [allDocuments, searchQuery, statusFilter, dateFilter, categoryFilter, isDocumentsTab]);
 
   if (activeTab === 'carebridge') {
-    // Same first-name extraction as TabEmptyState (drops title/surname).
-    const firstName = customer.fullName.split(' ').slice(1, -1).join(' ') || customer.fullName;
     return (
       <div className="max-w-[1280px] mx-auto flex flex-col gap-4">
         <DocumentTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
-        {/* Same purple tint as the "CareBridge Draft" panel on the Care Plan click-through. */}
-        <div className="flex items-start gap-3 rounded-lg border border-purple-200 bg-purple-50 px-4 py-3">
-          <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
-            <Sparkles className="w-4 h-4 text-[rgb(154,38,214)]" />
+        {/* Same purple tint as the "CareBridge Draft" panel on the Care Plan click-through.
+            Hovering anywhere on the panel plays the PASSgenius mark's own hover animation. */}
+        <div
+          className="flex items-start gap-3 rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 shadow"
+          onMouseEnter={() => triggerPassGeniusHover(passgeniusRef.current, true)}
+          onMouseLeave={() => triggerPassGeniusHover(passgeniusRef.current, false)}
+        >
+          <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 pt-1">
+            <object ref={passgeniusRef} type="image/svg+xml" data={passgeniusPurpleUrl} className="w-8 h-8" aria-label="PASSgenius" tabIndex={-1} />
           </div>
           <div>
-            <p className="text-lg font-semibold text-purple-900">A new home for recordings</p>
+            <p className="text-lg font-semibold text-purple-900">CareBridge — a new home for assessment and customer recordings</p>
             <p className="text-sm text-purple-800 mt-0.5">
-              Every recording and transcript captured on the app for {firstName} now lives here — click through
-              any entry to review what was said.
+              Every recording and transcript captured on the app for the customer lives here, giving a record of
+              what was actually said — so it can be checked against the text CareBridge drafted into the forms.
             </p>
           </div>
         </div>

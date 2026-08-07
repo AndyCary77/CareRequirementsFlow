@@ -133,7 +133,7 @@ interface TranscriptReference {
  * as "Not yet captured" rather than invented, since a real AI draft would
  * leave gaps for whatever wasn't actually said.
  */
-interface FormField {
+export interface FormField {
   id: string;
   label: string;
   type: 'text' | 'textarea' | 'select' | 'radio' | 'checkbox-group' | 'table';
@@ -893,6 +893,35 @@ const EDITH_GUIDE_SECTIONS: AssessmentSection[] = [
   { id: 'key-contacts', title: 'Key contacts', target: 'Contacts', text: "Key contact numbers for the office and the out-of-hours line were confirmed and left with Susan." },
 ];
 
+// A separate follow-up visit specifically to capture "What Is Important To
+// Me" — the Documents tab's WIITM page links to this recording (either
+// picked directly, or as what a "simulated upload" resolves to) so its
+// drafted fields have a real transcript to source "Check transcript" from.
+const EDITH_WIITM_TRANSCRIPT: TranscriptLine[] = [
+  { speaker: 'Alison (Assessor)', role: 'assessor', time: '10:15', text: "Let's talk about your living arrangements and what's important to you day to day. Who's at home with you?" },
+  { speaker: 'Edith', role: 'customer', time: '10:15', text: 'I live with my husband and my son.' },
+  { speaker: 'Alison (Assessor)', role: 'assessor', time: '10:16', text: 'And are there other family or relationships that matter to you?' },
+  { speaker: 'Edith', role: 'customer', time: '10:16', text: 'I live with my husband and my son, but I have a daughter who lives elsewhere.' },
+  { speaker: 'Alison (Assessor)', role: 'assessor', time: '10:18', text: 'Could you talk me through a typical day — your routines and habits?' },
+  { speaker: 'Edith', role: 'customer', time: '10:19', text: 'I wake up at about 10:00 a.m. and then I have some breakfast and then I go for a walk, and then I have a little lunch, and then I watch some telly, then I have some dinner, and then I go to sleep.' },
+  { speaker: 'Alison (Assessor)', role: 'assessor', time: '10:21', text: 'Are there any places or events that are especially important to you?' },
+  { speaker: 'Edith', role: 'customer', time: '10:21', text: 'I always celebrate my birthday and for my birthday, I always go to the Air Museum.' },
+  { speaker: 'Alison (Assessor)', role: 'assessor', time: '10:23', text: 'Do you have any religious or cultural preferences we should know about?' },
+  { speaker: 'Edith', role: 'customer', time: '10:23', text: "I always was Christian, but in later years I've become a little bit more agnostic. I don't really know anything." },
+  { speaker: 'Alison (Assessor)', role: 'assessor', time: '10:25', text: 'What about social activities or hobbies — things you like to do?' },
+  { speaker: 'Edith', role: 'customer', time: '10:25', text: 'I do bowls and I like to play tennis.' },
+  { speaker: 'Alison (Assessor)', role: 'assessor', time: '10:27', text: 'Do you have any pets, or do you get visits from any?' },
+  { speaker: 'Edith', role: 'customer', time: '10:27', text: "No, I don't like pets. I have allergies." },
+  { speaker: 'Alison (Assessor)', role: 'assessor', time: '10:29', text: 'Is there any support you need for your safety, or for the safety of those around you?' },
+  { speaker: 'Edith', role: 'customer', time: '10:29', text: "No support really. I have a walking stick, but I don't need any support." },
+  { speaker: 'Alison (Assessor)', role: 'assessor', time: '10:31', text: 'Are there any concerns or difficulties that affect you day to day?' },
+  { speaker: 'Edith', role: 'customer', time: '10:32', text: "It's just general ageing really. I just can't move as well as I used to." },
+  { speaker: 'Alison (Assessor)', role: 'assessor', time: '10:34', text: 'Is there anything else important about you that we should know?' },
+  { speaker: 'Edith', role: 'customer', time: '10:34', text: 'Not really. Just a simple woman.' },
+  { speaker: 'Alison (Assessor)', role: 'assessor', time: '10:36', text: 'Last thing — any allergies not already covered by your medication or nutrition assessments?' },
+  { speaker: 'Edith', role: 'customer', time: '10:36', text: 'I have allergies (in the context of not liking pets).' },
+];
+
 // ─── Recordings ──────────────────────────────────────────────────────────────
 // The picker at the top of the page only ever lists genuine recording-worthy
 // visits (a company's own assessment/review cadence) — never the one-off
@@ -914,6 +943,8 @@ export interface Recording {
   id: string;
   label: string; // "Initial Assessment", "6-Week Review" — the visit/cadence type
   recordingMeta: string;
+  /** Who captured this on the app — the logged-in staff member, not derived from the transcript. */
+  recordedBy: string;
   transcript: TranscriptLine[];
   focusDocumentName: string;
   isCarePlanFocus: boolean;
@@ -937,6 +968,7 @@ const RECORDINGS: Record<string, Recording[]> = {
       id: 'initial',
       label: 'Initial Assessment',
       recordingMeta: '14 Oct 2025 · 10:00–11:10 · 70 min',
+      recordedBy: 'Sharon Whitfield',
       transcript: [...TRANSCRIPT, ...CONSENT_TRANSCRIPT_ARTHUR, ...RECEIPT_TRANSCRIPT_ARTHUR, ...PRIVACY_TRANSCRIPT_ARTHUR, ...TERMS_TRANSCRIPT_ARTHUR, ...GUIDE_TRANSCRIPT_ARTHUR],
       focusDocumentName: 'Customer Care and Support Plan',
       isCarePlanFocus: true,
@@ -958,6 +990,7 @@ const RECORDINGS: Record<string, Recording[]> = {
       id: 'review6',
       label: '6-Week Review',
       recordingMeta: '25 Nov 2025 · 09:29–09:52 · 23 min',
+      recordedBy: 'Sharon Whitfield',
       transcript: INSTRUCTIONS_TRANSCRIPT_ARTHUR,
       focusDocumentName: 'Confirmation of Instructions',
       isCarePlanFocus: false,
@@ -973,6 +1006,7 @@ const RECORDINGS: Record<string, Recording[]> = {
       id: 'initial',
       label: 'Initial Assessment',
       recordingMeta: '7 Jul 2026 · 13:59–15:01 · 62 min',
+      recordedBy: 'Alison Mercer',
       transcript: [...EDITH_TRANSCRIPT, ...EDITH_CONSENT_TRANSCRIPT, ...EDITH_RECEIPT_TRANSCRIPT, ...EDITH_PRIVACY_TRANSCRIPT, ...EDITH_TERMS_TRANSCRIPT, ...EDITH_GUIDE_TRANSCRIPT],
       focusDocumentName: 'Customer Care and Support Plan',
       isCarePlanFocus: true,
@@ -991,6 +1025,20 @@ const RECORDINGS: Record<string, Recording[]> = {
       edits: { focus: 3 },
       isNew: true,
     },
+    {
+      id: 'wiitm-followup',
+      label: 'What Is Important To Me — Follow-up',
+      recordingMeta: '21 Jul 2026 · 10:15–10:45 · 30 min',
+      recordedBy: 'Alison Mercer',
+      transcript: EDITH_WIITM_TRANSCRIPT,
+      focusDocumentName: 'What Is Important To Me',
+      isCarePlanFocus: false,
+      focusSections: [],
+      secondary: [],
+      chat: [],
+      edits: { focus: 0 },
+      isNew: true,
+    },
   ],
 };
 
@@ -998,7 +1046,7 @@ export function resolveRecordings(customerId: string): Recording[] {
   return RECORDINGS[customerId] ?? RECORDINGS['arthur-barrington'];
 }
 
-function resolveRecording(customerId: string, recordingId: string): Recording {
+export function resolveRecording(customerId: string, recordingId: string): Recording {
   const recordings = resolveRecordings(customerId);
   return recordings.find(r => r.id === recordingId) ?? recordings[0];
 }
@@ -1521,7 +1569,7 @@ function TranscriptCheckPopover({
  * implicitly by editing them — fields the reviewer types in themselves need
  * no separate accept step, since typing them in is itself the review.
  */
-function FormFieldsView({
+export function FormFieldsView({
   fields,
   onChange,
   transcript,
@@ -2173,7 +2221,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'careplan', label: 'Draft Care Plan' },
 ];
 
-const CareBridgeContext = createContext<{
+export const CareBridgeContext = createContext<{
   tab: Tab;
   setTab: (t: Tab) => void;
   view: View;

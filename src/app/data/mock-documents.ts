@@ -158,6 +158,16 @@ export const ASSESSMENT_TEMPLATES: Record<string, Document[]> = {
       title: 'Customer Care and Support Plan',
       to: '/customers/edith-caldwell/documents/care-plan',
     },
+    // Sits right under the Care Plan — starts incomplete (blank, no recording
+    // linked yet); linking one on the click-through drafts it in.
+    {
+      id: 'd-wiitm',
+      status: 'danger',
+      title: 'What Is Important To Me',
+      createdDate: '14/05/2026',
+      category: 'Other',
+      to: '/customers/edith-caldwell/documents/wiitm',
+    },
     ...STANDARD_ASSESSMENT_PACK.slice(1).map(doc => ({
       ...doc,
       status: (doc.title === 'Consent to Care' || doc.title === 'Privacy Policy' ? 'success' : 'danger') as const,

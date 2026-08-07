@@ -12,6 +12,7 @@ import { CareNotes } from './components/customer/carenotes/CareNotes';
 import { DocumentsPage } from './components/customer/documents/DocumentsPage';
 import { CarePlanDocumentPage } from './components/customer/documents/CarePlanDocumentPage';
 import { RecordingDocumentPage } from './components/customer/documents/RecordingDocumentPage';
+import { WhatIsImportantToMeDocumentPage } from './components/customer/documents/WhatIsImportantToMeDocumentPage';
 import { CareManagementPage } from './components/customer/caremanagement/CareManagementPage';
 import { CareManagementProvider } from './components/customer/caremanagement/CareManagementContext';
 import { CareManagementSubnav } from './components/customer/caremanagement/CareManagementSubnav';
@@ -140,6 +141,18 @@ function RecordingDocumentLayout() {
   );
 }
 
+// No CareBridgeProvider needed — this document manages its own linked-recording
+// and field state locally, rather than through the Care Plan's shared context.
+function WhatIsImportantToMeDocumentLayout() {
+  return (
+    <CustomerProvider>
+      <AppShell infoBar={<CustomerInfo />}>
+        <WhatIsImportantToMeDocumentPage />
+      </AppShell>
+    </CustomerProvider>
+  );
+}
+
 function MARChartLayout() {
   return (
     <CustomerProvider>
@@ -258,6 +271,10 @@ export const router = createBrowserRouter([
   {
     path: "/customers/:customerId/documents/recording/:recordingId",
     Component: RecordingDocumentLayout,
+  },
+  {
+    path: "/customers/:customerId/documents/wiitm",
+    Component: WhatIsImportantToMeDocumentLayout,
   },
   {
     path: "/customers/:customerId/marchart",

@@ -1,10 +1,25 @@
-import { useState } from 'react';
+import { useState, useRef, useContext } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, History, Save, Printer, Trash2, Sparkles } from 'lucide-react';
+import { ArrowLeft, History, Save, Printer, Trash2, Mic, ChevronDown, ChevronRight, Upload, Link2Off, CheckCircle2, Send } from 'lucide-react';
 import { Button } from '../../buttons/Button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../../ui/dropdown-menu';
 import { useCustomer } from '../../../data/CustomerContext';
-import { CarePlanDocumentView } from '../CareBridgePage';
+import { CarePlanDocumentView, CareBridgeContext, resolveRecording, resolveRecordings } from '../CareBridgePage';
 import { DocumentTabs } from './DocumentTabs';
+import passgeniusPurpleUrl from '../../icons/passgenius-purple.svg';
+import { triggerPassGeniusHover } from '../../icons/passgenius';
+
+// What's currently feeding this draft: an app recording, a manually uploaded
+// one (no transcript/meta of its own — just a filename, for the demo), or
+// nothing at all after unlinking.
+type LinkedSource = { type: 'recording'; id: string } | { type: 'upload'; fileName: string } | null;
 
 /** The Assessments tab's click-through for "Customer Care and Support Plan" — reuses CareBridge's own Care Plan view. */
 export function CarePlanDocumentPage() {
@@ -14,6 +29,31 @@ export function CarePlanDocumentPage() {
   // CareBridgeContext) bubbles a native change event up to this wrapper —
   // cheaper than threading a dirty flag through every field component.
   const [dirty, setDirty] = useState(false);
+  const passgeniusRef = useRef<HTMLObjectElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [linkedSource, setLinkedSource] = useState<LinkedSource>({ type: 'recording', id: 'initial' });
+  const linkedRecording = linkedSource?.type === 'recording' ? resolveRecording(customer.id, linkedSource.id) : null;
+  const otherRecordings = resolveRecordings(customer.id).filter(r => linkedSource?.type !== 'recording' || r.id !== linkedSource.id);
+
+  // Publish is gated on review, same as the real CareBridge subnav's CTA —
+  // a draft with un-reviewed AI-drafted fields can't be published yet.
+  const { hasPendingReview } = useContext(CareBridgeContext);
+  const pendingReview = !!linkedRecording && hasPendingReview(linkedRecording);
+  const [published, setPublished] = useState(false);
+
+  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) setLinkedSource({ type: 'upload', fileName: file.name });
+    e.target.value = '';
+  };
+
+  const handleUnlink = () => {
+    const name = linkedSource?.type === 'recording' ? linkedRecording?.label : linkedSource?.fileName;
+    if (window.confirm(`Unlink "${name}" from this draft? The fields already accepted stay as they are, but nothing will sync from a recording until you link a new one.`)) {
+      setLinkedSource(null);
+    }
+  };
 
   return (
     // Matches the Documents/Assessments list and CustomerDetailsPage's two-column width.
@@ -33,23 +73,150 @@ export function CarePlanDocumentPage() {
         <div className="flex items-center gap-3">
           <Button variant="tertiary" icon={<Printer className="w-4 h-4" />} onClick={() => window.print()}>Print</Button>
           <Button variant="tertiary" icon={<Trash2 className="w-4 h-4" />}>Delete</Button>
-          <Button icon={<Save className="w-4 h-4" />} disabled={!dirty} onClick={() => setDirty(false)}>Save</Button>
+          {/* While still a draft, Publish (in the CareBridge panel) is the only
+              terminal action — Save doesn't apply until it's a proper document. */}
+          {published && (
+            <Button icon={<Save className="w-4 h-4" />} disabled={!dirty} onClick={() => setDirty(false)}>Save</Button>
+          )}
         </div>
       </div>
 
-      {/* Same purple tint as the "CareBridge Assistant" header inside CareBridgePage. */}
-      <div className="flex items-start gap-3 rounded-lg border border-purple-200 bg-purple-50 px-4 py-3">
-        <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
-          <Sparkles className="w-4 h-4 text-[rgb(154,38,214)]" />
+      {/* Hidden regardless of which menu item asked for it — one input, reused. */}
+      <input ref={fileInputRef} type="file" accept="audio/*" className="hidden" onChange={handleUpload} />
+
+      {published ? (
+        /* Publish is one-way — once the draft becomes a saved document, the
+           review/relink workflow below no longer applies. */
+        <div className="flex items-start gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3">
+          <div className="w-7 h-7 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
+            <CheckCircle2 className="w-4 h-4 text-green-600" />
+          </div>
+          <div>
+            <p className="text-lg font-semibold text-green-900">Published</p>
+            <p className="text-sm text-green-800 mt-0.5">
+              This document has been published from the CareBridge draft — it's now a saved document and is no
+              longer tracked as a draft.
+            </p>
+          </div>
         </div>
-        <div>
-          <p className="text-lg font-semibold text-purple-900">CareBridge Draft</p>
-          <p className="text-sm text-purple-800 mt-0.5">
-            This draft has been generated from a recording — review the fields below and accept them to confirm
-            they're correct before they're saved to the customer file.
-          </p>
+      ) : (
+        // Same purple tint as the "CareBridge Assistant" header inside CareBridgePage.
+        // Hovering anywhere on the panel plays the PASSgenius mark's own hover animation.
+        <div
+          className="flex items-start gap-3 rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 shadow"
+          onMouseEnter={() => triggerPassGeniusHover(passgeniusRef.current, true)}
+          onMouseLeave={() => triggerPassGeniusHover(passgeniusRef.current, false)}
+        >
+          <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 pt-1">
+            <object ref={passgeniusRef} type="image/svg+xml" data={passgeniusPurpleUrl} className="w-8 h-8" aria-label="PASSgenius" tabIndex={-1} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-lg font-semibold text-purple-900">CareBridge Draft</p>
+
+            {/* pr-32 keeps the line from running the full panel width, so it
+                doesn't read as crowding the Publish button in the row below. */}
+            {linkedRecording ? (
+              <p className="text-sm text-purple-800 mt-0.5 pr-32">
+                Generated from <strong>{linkedRecording.label}</strong>, recorded{' '}
+                <strong>
+                  {linkedRecording.recordingMeta.split(' · ')[0]} at{' '}
+                  {linkedRecording.recordingMeta.split(' · ')[1].split('–')[0]}
+                </strong>{' '}
+                by <strong>{linkedRecording.recordedBy}</strong> — review the fields below and accept them to
+                confirm they're correct before they're saved to the customer file.
+              </p>
+            ) : linkedSource?.type === 'upload' ? (
+              <p className="text-sm text-purple-800 mt-0.5 pr-32">
+                Generated from the uploaded recording <strong>{linkedSource.fileName}</strong> — review the fields
+                below and accept them to confirm they're correct before they're saved to the customer file.
+              </p>
+            ) : (
+              <p className="text-sm text-purple-800 mt-0.5 pr-32">
+                No recording is linked to this draft — the fields below reflect whatever was last accepted. Link an
+                existing recording or upload one to bring in new content.
+              </p>
+            )}
+
+            {/* flex-wrap + a separate group for the links vs. the button means
+                the button drops to its own line rather than overlapping the
+                links when the panel's too narrow for both on one row. */}
+            <div className="flex flex-wrap items-center justify-between gap-3 mt-2.5">
+              <div className="flex items-center gap-4">
+                {linkedRecording && (
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/customers/${customer.id}/documents/recording/${linkedRecording.id}`)}
+                    className="flex items-center gap-1 text-sm font-medium text-[rgb(154,38,214)] hover:underline cursor-pointer"
+                  >
+                    View recording
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                )}
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 text-sm font-medium text-[rgb(154,38,214)] hover:underline cursor-pointer"
+                    >
+                      {linkedSource ? 'Replace recording' : 'Link a recording'}
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-72">
+                    <DropdownMenuLabel>Choose a different recording</DropdownMenuLabel>
+                    {otherRecordings.length > 0 ? (
+                      otherRecordings.map(r => (
+                        <DropdownMenuItem
+                          key={r.id}
+                          onSelect={() => setLinkedSource({ type: 'recording', id: r.id })}
+                          className="flex items-center justify-between gap-3 py-2"
+                        >
+                          <span className="flex items-center gap-2 text-gray-900">
+                            <Mic className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                            {r.label}
+                          </span>
+                          <span className="text-sm text-gray-500 whitespace-nowrap flex-shrink-0">
+                            {r.recordingMeta.split(' · ')[0]}
+                          </span>
+                        </DropdownMenuItem>
+                      ))
+                    ) : (
+                      <DropdownMenuItem disabled className="text-gray-400">No other recordings for this customer</DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator />
+                    {/* Deferred a tick — Radix closes the menu and restores focus
+                        right after onSelect, which can race with (and cancel) the
+                        native file dialog if triggered in the same tick. */}
+                    <DropdownMenuItem onSelect={() => setTimeout(() => fileInputRef.current?.click(), 0)} className="flex items-center gap-2">
+                      <Upload className="w-3.5 h-3.5 text-gray-400" />
+                      Upload a recording
+                    </DropdownMenuItem>
+                    {linkedSource && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={handleUnlink} className="flex items-center gap-2 text-red-600 focus:text-red-600">
+                          <Link2Off className="w-3.5 h-3.5" />
+                          Unlink recording
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              <Button
+                icon={<Send className="w-4 h-4" />}
+                disabled={pendingReview}
+                title={pendingReview ? 'Accept the outstanding drafted fields before publishing' : undefined}
+                onClick={() => setPublished(true)}
+              >
+                Publish
+              </Button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="flex items-center px-5 py-4 rounded-lg border border-gray-200 bg-white">
         <h2 className="text-xl font-semibold text-gray-900">Customer Care and Support Plan</h2>

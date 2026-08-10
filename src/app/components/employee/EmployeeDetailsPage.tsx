@@ -285,7 +285,7 @@ export function EmployeeDetailsPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Email
-                <span className="ml-2 text-green-500">✓</span>
+                <span className="ml-2 text-[rgb(33,166,33)]">✓</span>
               </label>
               <input 
                 type="email" 

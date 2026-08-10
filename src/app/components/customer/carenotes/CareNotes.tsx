@@ -241,7 +241,7 @@ function VisitRow({ visit, defaultOpen }: { visit: Visit; defaultOpen?: boolean 
                 const pillClass =
                   taskStatus === 'refused' ? 'bg-amber-600 text-white'
                   : taskStatus === 'cancelled' ? 'bg-gray-200 text-gray-700'
-                  : 'bg-green-600 text-white';
+                  : 'bg-[rgb(33,166,33)] text-white';
                 const TaskIcon = taskStatus === 'refused' ? Plus : taskStatus === 'cancelled' ? X : Check;
                 return (
                   <div key={i} className="flex gap-3 text-sm">

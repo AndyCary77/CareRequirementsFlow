@@ -112,7 +112,7 @@ const EmployeeCard = ({
       </div>
     </div>
     {!isShadow && (
-      <CheckCircle2 className="w-5 h-5 text-green-500" />
+      <CheckCircle2 className="w-5 h-5 text-[rgb(33,166,33)]" />
     )}
   </div>
 );
@@ -174,7 +174,7 @@ export const VisitDetailsPanel = ({
                     <span
                       className={`text-xs px-3 py-1 rounded ${
                         type === "all"
-                          ? "bg-green-100 text-green-700"
+                          ? "bg-[rgb(212,240,212)] text-[rgb(21,125,21)]"
                           : "bg-gray-100 text-gray-700"
                       }`}
                     >

@@ -1395,9 +1395,9 @@ function EditableFormField({
       {/* Small green-tinted confirmation, replacing the old plain "Accepted"
           text label — shows who accepted it and when, a lightweight audit trail. */}
       {captured && field.reviewed === true && field.reviewedAt && (
-        <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-green-50 border border-green-200 px-2.5 py-1">
-          <Check className="w-3 h-3 text-green-600 flex-shrink-0" />
-          <span className="text-xs text-green-800">Accepted by {field.reviewedBy} on {field.reviewedAt}</span>
+        <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-[rgb(232,247,232)] border border-[rgb(178,224,178)] px-2.5 py-1">
+          <Check className="w-3 h-3 text-[rgb(33,166,33)] flex-shrink-0" />
+          <span className="text-xs text-[rgb(16,100,16)]">Accepted by {field.reviewedBy} on {field.reviewedAt}</span>
         </div>
       )}
 

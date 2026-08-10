@@ -12,7 +12,7 @@ interface DocumentListProps {
 // darkened shade of the same hue for readable text) rather than red, so it
 // doesn't read as alarming.
 const STATUS_CONFIG: Record<Document['status'], { Icon: typeof Check; circleBg: string; label: string; pill: string }> = {
-  success: { Icon: Check, circleBg: 'bg-green-500', label: 'Complete', pill: 'bg-green-100 text-green-700' },
+  success: { Icon: Check, circleBg: 'bg-[rgb(33,166,33)]', label: 'Complete', pill: 'bg-[rgb(212,240,212)] text-[rgb(21,125,21)]' },
   danger: { Icon: Minus, circleBg: 'bg-[#e97b35]', label: 'Incomplete', pill: 'bg-[#fdf2eb] text-[#975022]' },
   warning: { Icon: CalendarX, circleBg: 'bg-amber-500', label: 'Review required', pill: 'bg-amber-100 text-amber-700' },
   draft: { Icon: PenLine, circleBg: 'bg-[rgb(154,38,214)]', label: 'Draft', pill: 'bg-purple-100 text-[rgb(109,27,152)]' },

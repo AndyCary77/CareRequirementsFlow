@@ -244,13 +244,13 @@ export function WiitmDocumentContent() {
       <input ref={fileInputRef} type="file" accept="audio/*" className="hidden" onChange={handleUpload} />
 
       {published ? (
-        <div className="flex items-start gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3">
-          <div className="w-7 h-7 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
-            <CheckCircle2 className="w-4 h-4 text-green-600" />
+        <div className="flex items-start gap-3 rounded-lg border border-[rgb(178,224,178)] bg-[rgb(232,247,232)] px-4 py-3">
+          <div className="w-7 h-7 rounded-lg bg-[rgb(212,240,212)] flex items-center justify-center flex-shrink-0">
+            <CheckCircle2 className="w-4 h-4 text-[rgb(33,166,33)]" />
           </div>
           <div>
-            <p className="text-lg font-semibold text-green-900">Published</p>
-            <p className="text-sm text-green-800 mt-0.5">
+            <p className="text-lg font-semibold text-[rgb(12,77,12)]">Published</p>
+            <p className="text-sm text-[rgb(16,100,16)] mt-0.5">
               This document has been published from the CareBridge draft — it's now a saved document and is no
               longer tracked as a draft.
             </p>
@@ -277,7 +277,7 @@ export function WiitmDocumentContent() {
                   <div className="flex flex-col items-center gap-1.5 flex-shrink-0 w-24">
                     <span
                       className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-semibold ${
-                        state === 'done' ? 'bg-green-500 text-white' : state === 'active' ? 'bg-[rgb(154,38,214)] text-white' : 'bg-purple-100 text-purple-400'
+                        state === 'done' ? 'bg-[rgb(33,166,33)] text-white' : state === 'active' ? 'bg-[rgb(154,38,214)] text-white' : 'bg-purple-100 text-purple-400'
                       }`}
                     >
                       {/* Keyed by state so the tick actually plays a pop-in transition rather than silently swapping icons. */}

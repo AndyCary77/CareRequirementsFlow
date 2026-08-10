@@ -178,13 +178,13 @@ export function CarePlanDocumentContent() {
       {published ? (
         /* Publish is one-way — once the draft becomes a saved document, the
            review/relink workflow below no longer applies. */
-        <div className="flex items-start gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3">
-          <div className="w-7 h-7 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
-            <CheckCircle2 className="w-4 h-4 text-green-600" />
+        <div className="flex items-start gap-3 rounded-lg border border-[rgb(178,224,178)] bg-[rgb(232,247,232)] px-4 py-3">
+          <div className="w-7 h-7 rounded-lg bg-[rgb(212,240,212)] flex items-center justify-center flex-shrink-0">
+            <CheckCircle2 className="w-4 h-4 text-[rgb(33,166,33)]" />
           </div>
           <div>
-            <p className="text-lg font-semibold text-green-900">Published</p>
-            <p className="text-sm text-green-800 mt-0.5">
+            <p className="text-lg font-semibold text-[rgb(12,77,12)]">Published</p>
+            <p className="text-sm text-[rgb(16,100,16)] mt-0.5">
               This document has been published from the CareBridge draft — it's now a saved document and is no
               longer tracked as a draft.
             </p>

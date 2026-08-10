@@ -148,8 +148,24 @@ export interface FormField {
   promptingQuestions?: string[];
   /** false = CareBridge drafted this from the recording and it hasn't been manually accepted yet. Undefined for fields with no captured content — nothing to review. Set true once a reviewer accepts it, or automatically the moment they edit it themselves. */
   reviewed?: boolean;
+  /** Who/when accepted this field (explicitly via "Accept", or implicitly by editing it) — set alongside `reviewed: true`, shown in the accepted-state banner as a lightweight audit trail. */
+  reviewedBy?: string;
+  reviewedAt?: string;
   /** Where in the recording's transcript this field was drafted from — lets a reviewer jump straight to the source via "Check transcript". Undefined for fields with nothing to trace (not drafted from this recording). */
   sourceLines?: TranscriptReference[];
+}
+
+// The logged-in reviewer accepting/editing a field — matches TopNav's own
+// default `userName` prop, since there's no real auth/session to read from.
+const CURRENT_USER = 'Alex Morgan';
+
+/** "7 Aug 2026, 14:32" — stamped onto a field the moment it's accepted (explicitly, or implicitly by editing it). */
+function formatAcceptedAt(date: Date): string {
+  const day = date.getDate();
+  const month = date.toLocaleString('en-GB', { month: 'short' });
+  const year = date.getFullYear();
+  const time = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  return `${day} ${month} ${year}, ${time}`;
 }
 
 // IDs match CARE_PLAN_STRUCTURE below (the real document's section taxonomy),
@@ -1256,11 +1272,19 @@ function EditableFormField({
     ? <label htmlFor={field.id} className="text-sm font-medium text-gray-700">{field.label}</label>
     : <span className="text-sm font-medium text-gray-700">{field.label}</span>;
 
+  // Stamps who/when on top of whatever patch the caller wanted — used for
+  // both the explicit "Accept" button and every direct edit (typing,
+  // selecting, checking a box, ...), all of which auto-accept.
+  const markReviewed = (patch: Partial<FormField> = {}) =>
+    onChange({ ...patch, reviewed: true, reviewedBy: CURRENT_USER, reviewedAt: formatAcceptedAt(new Date()) });
+
   return (
     <div className="mb-5 last:mb-0">
       <div className="flex items-center justify-between gap-3 mb-1.5">
         {labelEl}
-        {captured && (
+        {/* Once accepted there's nothing left to action — Check transcript
+            and Accept both drop away in favour of the confirmation banner below. */}
+        {pending && (
           <div className="flex items-center gap-3 flex-shrink-0">
             {!!field.sourceLines?.length && (
               <TranscriptCheckPopover fieldLabel={field.label} transcript={transcript} references={field.sourceLines}>
@@ -1272,21 +1296,13 @@ function EditableFormField({
                 </button>
               </TranscriptCheckPopover>
             )}
-            {field.reviewed === false ? (
-              <button
-                type="button"
-                onClick={() => onChange({ reviewed: true })}
-                className="inline-flex items-center gap-1 text-sm font-medium text-amber-700 hover:text-amber-900 transition-colors cursor-pointer"
-              >
-                <Check className="w-3.5 h-3.5" /> Accept
-              </button>
-            ) : field.reviewed === true && (
-              // Accepted into this draft, not into the real, live assessment document it feeds —
-              // a static label rather than a button, since there's nothing left to action here.
-              <span className="inline-flex items-center gap-1 text-sm font-medium text-gray-500">
-                <Check className="w-3.5 h-3.5" /> Accepted
-              </span>
-            )}
+            <button
+              type="button"
+              onClick={() => markReviewed()}
+              className="inline-flex items-center gap-1 text-sm font-medium text-amber-700 hover:text-amber-900 transition-colors cursor-pointer"
+            >
+              <Check className="w-3.5 h-3.5" /> Accept
+            </button>
           </div>
         )}
       </div>
@@ -1296,7 +1312,7 @@ function EditableFormField({
           id={field.id}
           type="text"
           value={field.value ?? ''}
-          onChange={e => onChange({ value: e.target.value, reviewed: true })}
+          onChange={e => markReviewed({ value: e.target.value })}
           placeholder="Not yet captured"
           className={inputClass}
         />
@@ -1305,7 +1321,7 @@ function EditableFormField({
       {field.type === 'textarea' && (
         <AutoResizeTextarea
           value={field.value ?? ''}
-          onChange={value => onChange({ value, reviewed: true })}
+          onChange={value => markReviewed({ value })}
           placeholder="Not yet captured"
           className={inputClass}
         />
@@ -1323,7 +1339,7 @@ function EditableFormField({
                   checked={checked}
                   onChange={() => {
                     const next = checked ? (field.values ?? []).filter(v => v !== opt) : [...(field.values ?? []), opt];
-                    onChange({ values: next, reviewed: true });
+                    markReviewed({ values: next });
                   }}
                   className="w-4 h-4 rounded accent-[rgb(154,38,214)] cursor-pointer"
                 />
@@ -1339,7 +1355,7 @@ function EditableFormField({
           <select
             id={field.id}
             value={field.value ?? ''}
-            onChange={e => onChange({ value: e.target.value, reviewed: true })}
+            onChange={e => markReviewed({ value: e.target.value })}
             className={`${inputClass} appearance-none pr-8 ${!field.value ? 'text-gray-500' : ''}`}
           >
             <option value="" disabled>Not yet captured</option>
@@ -1360,7 +1376,7 @@ function EditableFormField({
                 type="radio"
                 name={field.id}
                 checked={field.value === opt}
-                onChange={() => onChange({ value: opt, reviewed: true })}
+                onChange={() => markReviewed({ value: opt })}
                 className="w-4 h-4 accent-[rgb(154,38,214)] cursor-pointer"
               />
               {opt}
@@ -1371,6 +1387,15 @@ function EditableFormField({
 
       {field.type === 'table' && (
         <EditableTableField field={field} pending={pending} captured={captured} onChange={onChange} />
+      )}
+
+      {/* Small green-tinted confirmation, replacing the old plain "Accepted"
+          text label — shows who accepted it and when, a lightweight audit trail. */}
+      {captured && field.reviewed === true && field.reviewedAt && (
+        <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-md bg-green-50 border border-green-200 px-2.5 py-1">
+          <Check className="w-3 h-3 text-green-600 flex-shrink-0" />
+          <span className="text-xs text-green-800">Accepted by {field.reviewedBy} on {field.reviewedAt}</span>
+        </div>
       )}
 
       {field.helpText && <p className="text-sm text-gray-500 mt-1.5">{field.helpText}</p>}
@@ -1404,11 +1429,11 @@ function EditableTableField({
 
   const updateCell = (rowIndex: number, colIndex: number, value: string) => {
     const next = rows.map((row, i) => (i === rowIndex ? row.map((cell, j) => (j === colIndex ? value : cell)) : row));
-    onChange({ rows: next, reviewed: true });
+    onChange({ rows: next, reviewed: true, reviewedBy: CURRENT_USER, reviewedAt: formatAcceptedAt(new Date()) });
   };
 
   const addRow = () => {
-    onChange({ rows: [...rows, field.columns!.map(() => '')], reviewed: true });
+    onChange({ rows: [...rows, field.columns!.map(() => '')], reviewed: true, reviewedBy: CURRENT_USER, reviewedAt: formatAcceptedAt(new Date()) });
   };
 
   const removeRow = (rowIndex: number) => {
@@ -1585,7 +1610,8 @@ export function FormFieldsView({
   const pendingFields = fields.filter(f => isFieldCaptured(f) && f.reviewed === false);
 
   const acceptAll = () => {
-    onChange(fields.map(f => (isFieldCaptured(f) && f.reviewed === false ? { ...f, reviewed: true } : f)));
+    const acceptedAt = formatAcceptedAt(new Date());
+    onChange(fields.map(f => (isFieldCaptured(f) && f.reviewed === false ? { ...f, reviewed: true, reviewedBy: CURRENT_USER, reviewedAt: acceptedAt } : f)));
   };
 
   return (

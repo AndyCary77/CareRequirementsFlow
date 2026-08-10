@@ -1,4 +1,4 @@
-import { useState, useRef, useContext } from 'react';
+import { createContext, useContext as useReactContext, useState, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, History, Save, Printer, Trash2, Mic, ChevronDown, ChevronRight, Upload, Link2Off, CheckCircle2, Send } from 'lucide-react';
 import { Button } from '../../buttons/Button';
@@ -11,8 +11,10 @@ import {
   DropdownMenuTrigger,
 } from '../../ui/dropdown-menu';
 import { useCustomer } from '../../../data/CustomerContext';
-import { CarePlanDocumentView, CareBridgeContext, resolveRecording, resolveRecordings } from '../CareBridgePage';
+import type { CustomerProfile } from '../../../data/customers';
+import { CarePlanDocumentView, CareBridgeContext, resolveRecording, resolveRecordings, type Recording } from '../CareBridgePage';
 import { DocumentTabs } from './DocumentTabs';
+import { useScrolled } from '../../../hooks/useScrolled';
 import passgeniusPurpleUrl from '../../icons/passgenius-purple.svg';
 import { triggerPassGeniusHover } from '../../icons/passgenius';
 
@@ -21,13 +23,45 @@ import { triggerPassGeniusHover } from '../../icons/passgenius';
 // nothing at all after unlinking.
 type LinkedSource = { type: 'recording'; id: string } | { type: 'upload'; fileName: string } | null;
 
-/** The Assessments tab's click-through for "Customer Care and Support Plan" — reuses CareBridge's own Care Plan view. */
-export function CarePlanDocumentPage() {
+interface CarePlanDocumentState {
+  customer: CustomerProfile;
+  navigate: ReturnType<typeof useNavigate>;
+  dirty: boolean;
+  setDirty: (dirty: boolean) => void;
+  published: boolean;
+  setPublished: (published: boolean) => void;
+  linkedSource: LinkedSource;
+  setLinkedSource: (source: LinkedSource) => void;
+  linkedRecording: Recording | null;
+  otherRecordings: Recording[];
+  pendingReview: boolean;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  passgeniusRef: React.RefObject<HTMLObjectElement | null>;
+  handleUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleUnlink: () => void;
+}
+
+const CarePlanDocumentContext = createContext<CarePlanDocumentState | null>(null);
+
+function useCarePlanDocument(): CarePlanDocumentState {
+  const ctx = useReactContext(CarePlanDocumentContext);
+  if (!ctx) throw new Error('useCarePlanDocument must be used within CarePlanDocumentProvider');
+  return ctx;
+}
+
+/**
+ * Holds all state for the Care Plan click-through so the pinned sub-nav
+ * (in the AppShell's sticky infoBar, alongside CustomerInfo — same
+ * mechanism as CareManagementSubnav) and the scrolling content below can
+ * both read/act on it as siblings, rather than one owning state the other
+ * can't reach.
+ */
+export function CarePlanDocumentProvider({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const customer = useCustomer();
   // Any edit inside the care plan form (which manages its own field state via
-  // CareBridgeContext) bubbles a native change event up to this wrapper —
-  // cheaper than threading a dirty flag through every field component.
+  // CareBridgeContext) bubbles a native change event up to the content
+  // wrapper — cheaper than threading a dirty flag through every field component.
   const [dirty, setDirty] = useState(false);
   const passgeniusRef = useRef<HTMLObjectElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -38,7 +72,7 @@ export function CarePlanDocumentPage() {
 
   // Publish is gated on review, same as the real CareBridge subnav's CTA —
   // a draft with un-reviewed AI-drafted fields can't be published yet.
-  const { hasPendingReview } = useContext(CareBridgeContext);
+  const { hasPendingReview } = useReactContext(CareBridgeContext);
   const pendingReview = !!linkedRecording && hasPendingReview(linkedRecording);
   const [published, setPublished] = useState(false);
 
@@ -56,31 +90,83 @@ export function CarePlanDocumentPage() {
   };
 
   return (
-    // Matches the Documents/Assessments list and CustomerDetailsPage's two-column width.
-    <div className="flex flex-col gap-4 max-w-[1280px] mx-auto">
-      {/* Keeps the sub-nav visible (and "Assessments" active) on this
-          click-through, rather than it disappearing once you drill in. */}
-      <DocumentTabs activeTab="assessments" onTabChange={tab => navigate(`/customers/${customer.id}/documents?tab=${tab}`)} />
+    <CarePlanDocumentContext.Provider
+      value={{
+        customer, navigate, dirty, setDirty, published, setPublished, linkedSource, setLinkedSource,
+        linkedRecording, otherRecordings, pendingReview, fileInputRef, passgeniusRef, handleUpload, handleUnlink,
+      }}
+    >
+      {children}
+    </CarePlanDocumentContext.Provider>
+  );
+}
 
-      <div className="flex items-center justify-between">
-        <Button
-          variant="tertiary"
-          icon={<ArrowLeft className="w-4 h-4" />}
-          onClick={() => navigate(`/customers/${customer.id}/documents?tab=assessments`)}
-        >
-          Back
-        </Button>
-        <div className="flex items-center gap-3">
-          <Button variant="tertiary" icon={<Printer className="w-4 h-4" />} onClick={() => window.print()}>Print</Button>
-          <Button variant="tertiary" icon={<Trash2 className="w-4 h-4" />}>Delete</Button>
-          {/* While still a draft, Publish (in the CareBridge panel) is the only
-              terminal action — Save doesn't apply until it's a proper document. */}
-          {published && (
-            <Button icon={<Save className="w-4 h-4" />} disabled={!dirty} onClick={() => setDirty(false)}>Save</Button>
-          )}
+/** Pinned sub-nav — same sticky treatment as CareManagementSubnav: lives in AppShell's infoBar, so it scrolls with CustomerInfo instead of away with the page content. */
+export function CarePlanDocumentSubnav() {
+  const { customer, navigate, dirty, published, setDirty } = useCarePlanDocument();
+  const scrolled = useScrolled();
+
+  return (
+    <div className="bg-gray-50 border-b border-gray-200">
+      {/* Two levels, matching AppShell's <main> (max-w-[1600px] mx-auto px-6)
+          plus the content's own nested max-w-[1280px] mx-auto — otherwise
+          this pinned bar doesn't line up with the content scrolling beneath it. */}
+      <div className="max-w-[1600px] mx-auto px-6">
+        <div className="max-w-[1280px] mx-auto">
+          {/* Row 1 — Back + actions. Kept separate from the tabs row below:
+              combined into one row, Back/actions of varying width on each
+              page threw off how much space was left for the tabs, so they
+              centred differently here than on the plain Documents list —
+              and left less room on narrower screens. */}
+          <div className={`flex items-center justify-between gap-4 transition-all duration-300 ${scrolled ? 'py-2' : 'py-3.5'}`}>
+            <Button
+              variant="tertiary"
+              icon={<ArrowLeft className="w-4 h-4" />}
+              onClick={() => navigate(`/customers/${customer.id}/documents?tab=assessments`)}
+            >
+              Back
+            </Button>
+
+            <div className="flex items-center gap-3">
+              <Button variant="tertiary" icon={<Printer className="w-4 h-4" />} onClick={() => window.print()}>Print</Button>
+              <Button variant="tertiary" icon={<Trash2 className="w-4 h-4" />}>Delete</Button>
+              {/* "Save Draft" while still a draft — a genuine use case (accepting
+                  some fields but not all, then coming back later) even though
+                  Publish is the terminal action. Not gated on `dirty` here: that
+                  flag only catches native onChange bubbling from text edits, not
+                  clicking Accept/Accept all, so it can't reliably tell whether
+                  there's anything worth saving — always enabled instead. */}
+              <Button
+                icon={<Save className="w-4 h-4" />}
+                disabled={published && !dirty}
+                onClick={() => setDirty(false)}
+              >
+                {published ? 'Save' : 'Save Draft'}
+              </Button>
+            </div>
+          </div>
+
+          {/* Row 2 — tabs, alone in the full-width row so they centre exactly
+              the same way as on the plain Documents/Assessments list. */}
+          <div className={`border-t border-gray-200 transition-all duration-300 ${scrolled ? 'py-2' : 'py-3'}`}>
+            <DocumentTabs activeTab="assessments" onTabChange={tab => navigate(`/customers/${customer.id}/documents?tab=${tab}`)} />
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
 
+/** Everything below the pinned sub-nav — the CareBridge Draft panel, title bar, History and the form itself. */
+export function CarePlanDocumentContent() {
+  const {
+    customer, navigate, published, linkedSource, setLinkedSource, linkedRecording, otherRecordings,
+    pendingReview, fileInputRef, passgeniusRef, handleUpload, handleUnlink, setDirty, setPublished,
+  } = useCarePlanDocument();
+
+  return (
+    // Matches the Documents/Assessments list and CustomerDetailsPage's two-column width.
+    <div className="flex flex-col gap-4 max-w-[1280px] mx-auto">
       {/* Hidden regardless of which menu item asked for it — one input, reused. */}
       <input ref={fileInputRef} type="file" accept="audio/*" className="hidden" onChange={handleUpload} />
 

@@ -10,9 +10,9 @@ import { EmployeeRecordsPage } from './components/employee/EmployeeRecordsPage';
 import { CustomerDetailsPage } from './components/customer/CustomerDetailsPage';
 import { CareNotes } from './components/customer/carenotes/CareNotes';
 import { DocumentsPage } from './components/customer/documents/DocumentsPage';
-import { CarePlanDocumentPage } from './components/customer/documents/CarePlanDocumentPage';
+import { CarePlanDocumentProvider, CarePlanDocumentSubnav, CarePlanDocumentContent } from './components/customer/documents/CarePlanDocumentPage';
 import { RecordingDocumentPage } from './components/customer/documents/RecordingDocumentPage';
-import { WhatIsImportantToMeDocumentPage } from './components/customer/documents/WhatIsImportantToMeDocumentPage';
+import { WiitmDocumentProvider, WiitmDocumentSubnav, WiitmDocumentContent } from './components/customer/documents/WhatIsImportantToMeDocumentPage';
 import { CareManagementPage } from './components/customer/caremanagement/CareManagementPage';
 import { CareManagementProvider } from './components/customer/caremanagement/CareManagementContext';
 import { CareManagementSubnav } from './components/customer/caremanagement/CareManagementSubnav';
@@ -121,9 +121,11 @@ function CarePlanDocumentLayout() {
   return (
     <CustomerProvider>
       <CareBridgeProvider>
-        <AppShell infoBar={<CustomerInfo />}>
-          <CarePlanDocumentPage />
-        </AppShell>
+        <CarePlanDocumentProvider>
+          <AppShell infoBar={<><CustomerInfo /><CarePlanDocumentSubnav /></>}>
+            <CarePlanDocumentContent />
+          </AppShell>
+        </CarePlanDocumentProvider>
       </CareBridgeProvider>
     </CustomerProvider>
   );
@@ -146,9 +148,11 @@ function RecordingDocumentLayout() {
 function WhatIsImportantToMeDocumentLayout() {
   return (
     <CustomerProvider>
-      <AppShell infoBar={<CustomerInfo />}>
-        <WhatIsImportantToMeDocumentPage />
-      </AppShell>
+      <WiitmDocumentProvider>
+        <AppShell infoBar={<><CustomerInfo /><WiitmDocumentSubnav /></>}>
+          <WiitmDocumentContent />
+        </AppShell>
+      </WiitmDocumentProvider>
     </CustomerProvider>
   );
 }

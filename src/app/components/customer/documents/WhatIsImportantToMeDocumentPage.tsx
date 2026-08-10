@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, Fragment } from 'react';
+import { createContext, useContext as useReactContext, useState, useRef, useEffect, Fragment } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, History, Save, Printer, Trash2, Mic, ChevronDown, ChevronRight, Upload, Link2Off, CheckCircle2, Send, Check, Loader2 } from 'lucide-react';
 import { Button } from '../../buttons/Button';
@@ -11,9 +11,11 @@ import {
   DropdownMenuTrigger,
 } from '../../ui/dropdown-menu';
 import { useCustomer } from '../../../data/CustomerContext';
-import { FormFieldsView, resolveRecording, resolveRecordings, type FormField } from '../CareBridgePage';
+import type { CustomerProfile } from '../../../data/customers';
+import { FormFieldsView, resolveRecording, resolveRecordings, type FormField, type Recording } from '../CareBridgePage';
 import { DocumentTabs } from './DocumentTabs';
 import { WIITM_FIELDS_BLANK, WIITM_FIELDS_DRAFT, WIITM_GROUPS } from './whatIsImportantToMeData';
+import { useScrolled } from '../../../hooks/useScrolled';
 import passgeniusPurpleUrl from '../../icons/passgenius-purple.svg';
 import { triggerPassGeniusHover } from '../../icons/passgenius';
 
@@ -50,8 +52,43 @@ const PROCESSING_COMPLETE_PAUSE_MS = 700;
 // link to, the same as picking it from the list directly would.
 const UPLOAD_MATCHED_RECORDING_ID = 'wiitm-followup';
 
-/** The Assessments tab's click-through for "What Is Important To Me" — starts blank; linking a recording drafts it in, same review UX as the Care Plan. */
-export function WhatIsImportantToMeDocumentPage() {
+interface WiitmDocumentState {
+  customer: CustomerProfile;
+  navigate: ReturnType<typeof useNavigate>;
+  dirty: boolean;
+  setDirty: (dirty: boolean) => void;
+  published: boolean;
+  setPublished: (published: boolean) => void;
+  linkedSource: LinkedSource;
+  linkedRecording: Recording | null;
+  otherRecordings: Recording[];
+  fields: FormField[];
+  pendingReview: boolean;
+  processingStep: number | null;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  passgeniusRef: React.RefObject<HTMLObjectElement | null>;
+  handleUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleUnlink: () => void;
+  startProcessing: (source: LinkedSource) => void;
+  updateGroupFields: (ids: string[], updated: FormField[]) => void;
+}
+
+const WiitmDocumentContext = createContext<WiitmDocumentState | null>(null);
+
+function useWiitmDocument(): WiitmDocumentState {
+  const ctx = useReactContext(WiitmDocumentContext);
+  if (!ctx) throw new Error('useWiitmDocument must be used within WiitmDocumentProvider');
+  return ctx;
+}
+
+/**
+ * Holds all state for the "What Is Important To Me" click-through so the
+ * pinned sub-nav (in the AppShell's sticky infoBar, alongside CustomerInfo —
+ * same mechanism as CareManagementSubnav) and the scrolling content below
+ * can both read/act on it as siblings, rather than one owning state the
+ * other can't reach.
+ */
+export function WiitmDocumentProvider({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const customer = useCustomer();
   const [dirty, setDirty] = useState(false);
@@ -115,26 +152,84 @@ export function WhatIsImportantToMeDocumentPage() {
   };
 
   return (
-    <div className="flex flex-col gap-4 max-w-[1280px] mx-auto">
-      <DocumentTabs activeTab="assessments" onTabChange={tab => navigate(`/customers/${customer.id}/documents?tab=${tab}`)} />
+    <WiitmDocumentContext.Provider
+      value={{
+        customer, navigate, dirty, setDirty, published, setPublished, linkedSource, linkedRecording,
+        otherRecordings, fields, pendingReview, processingStep, fileInputRef, passgeniusRef, handleUpload,
+        handleUnlink, startProcessing, updateGroupFields,
+      }}
+    >
+      {children}
+    </WiitmDocumentContext.Provider>
+  );
+}
 
-      <div className="flex items-center justify-between">
-        <Button
-          variant="tertiary"
-          icon={<ArrowLeft className="w-4 h-4" />}
-          onClick={() => navigate(`/customers/${customer.id}/documents?tab=assessments`)}
-        >
-          Back
-        </Button>
-        <div className="flex items-center gap-3">
-          <Button variant="tertiary" icon={<Printer className="w-4 h-4" />} onClick={() => window.print()}>Print</Button>
-          <Button variant="tertiary" icon={<Trash2 className="w-4 h-4" />}>Delete</Button>
-          {published && (
-            <Button icon={<Save className="w-4 h-4" />} disabled={!dirty} onClick={() => setDirty(false)}>Save</Button>
-          )}
+/** Pinned sub-nav — same sticky treatment as CareManagementSubnav: lives in AppShell's infoBar, so it scrolls with CustomerInfo instead of away with the page content. */
+export function WiitmDocumentSubnav() {
+  const { customer, navigate, dirty, published, setDirty } = useWiitmDocument();
+  const scrolled = useScrolled();
+
+  return (
+    <div className="bg-gray-50 border-b border-gray-200">
+      {/* Two levels, matching AppShell's <main> (max-w-[1600px] mx-auto px-6)
+          plus the content's own nested max-w-[1280px] mx-auto — otherwise
+          this pinned bar doesn't line up with the content scrolling beneath it. */}
+      <div className="max-w-[1600px] mx-auto px-6">
+        <div className="max-w-[1280px] mx-auto">
+          {/* Row 1 — Back + actions. Kept separate from the tabs row below:
+              combined into one row, Back/actions of varying width on each
+              page threw off how much space was left for the tabs, so they
+              centred differently here than on the plain Documents list —
+              and left less room on narrower screens. */}
+          <div className={`flex items-center justify-between gap-4 transition-all duration-300 ${scrolled ? 'py-2' : 'py-3.5'}`}>
+            <Button
+              variant="tertiary"
+              icon={<ArrowLeft className="w-4 h-4" />}
+              onClick={() => navigate(`/customers/${customer.id}/documents?tab=assessments`)}
+            >
+              Back
+            </Button>
+
+            <div className="flex items-center gap-3">
+              <Button variant="tertiary" icon={<Printer className="w-4 h-4" />} onClick={() => window.print()}>Print</Button>
+              <Button variant="tertiary" icon={<Trash2 className="w-4 h-4" />}>Delete</Button>
+              {/* "Save Draft" while still a draft — a genuine use case (accepting
+                  some fields but not all, then coming back later) even though
+                  Publish is the terminal action. Not gated on `dirty` here: that
+                  flag only catches native onChange bubbling from text edits, not
+                  clicking Accept/Accept all, so it can't reliably tell whether
+                  there's anything worth saving — always enabled instead. */}
+              <Button
+                icon={<Save className="w-4 h-4" />}
+                disabled={published && !dirty}
+                onClick={() => setDirty(false)}
+              >
+                {published ? 'Save' : 'Save Draft'}
+              </Button>
+            </div>
+          </div>
+
+          {/* Row 2 — tabs, alone in the full-width row so they centre exactly
+              the same way as on the plain Documents/Assessments list. */}
+          <div className={`border-t border-gray-200 transition-all duration-300 ${scrolled ? 'py-2' : 'py-3'}`}>
+            <DocumentTabs activeTab="assessments" onTabChange={tab => navigate(`/customers/${customer.id}/documents?tab=${tab}`)} />
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
 
+/** Everything below the pinned sub-nav — the CareBridge Draft/processing panel, title bar, History and the form itself. */
+export function WiitmDocumentContent() {
+  const {
+    customer, navigate, published, linkedSource, linkedRecording, otherRecordings, fields, pendingReview,
+    processingStep, fileInputRef, passgeniusRef, handleUpload, handleUnlink, startProcessing, updateGroupFields,
+    setDirty, setPublished,
+  } = useWiitmDocument();
+
+  return (
+    <div className="flex flex-col gap-4 max-w-[1280px] mx-auto">
       <input ref={fileInputRef} type="file" accept="audio/*" className="hidden" onChange={handleUpload} />
 
       {published ? (
@@ -273,12 +368,12 @@ export function WhatIsImportantToMeDocumentPage() {
                     )}
                     <DropdownMenuSeparator />
                     {/* Deferred a tick — Radix closes the menu and restores focus
-                  right after onSelect, which can race with (and cancel) the
-                  native file dialog if triggered in the same tick. */}
-              <DropdownMenuItem onSelect={() => setTimeout(() => fileInputRef.current?.click(), 0)} className="flex items-center gap-2">
-                <Upload className="w-3.5 h-3.5 text-gray-400" />
-                Upload a recording
-              </DropdownMenuItem>
+                        right after onSelect, which can race with (and cancel) the
+                        native file dialog if triggered in the same tick. */}
+                    <DropdownMenuItem onSelect={() => setTimeout(() => fileInputRef.current?.click(), 0)} className="flex items-center gap-2">
+                      <Upload className="w-3.5 h-3.5 text-gray-400" />
+                      Upload a recording
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onSelect={handleUnlink} className="flex items-center gap-2 text-red-600 focus:text-red-600">
                       <Link2Off className="w-3.5 h-3.5" />

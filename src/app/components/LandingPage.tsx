@@ -14,10 +14,26 @@ const SCREENS = [
     ],
   },
   {
-    title: 'CareBridge',
+    // Links straight into the Documents tab's click-throughs (the standalone
+    // draft/recording pages) rather than the main CareBridge tab — that
+    // older entry point has been superseded by this flow.
+    title: 'CareBridge — Drafts',
     items: [
-      { label: 'CareBridge (existing customer) — Arthur Barrington', to: '/customers/arthur-barrington/carebridge' },
-      { label: 'CareBridge (new enquiry) — Edith Caldwell', to: '/customers/edith-caldwell/carebridge' },
+      // Arthur's 'initial' recording has every field/section already
+      // reviewed:true baked in, so it never shows any pending-review state —
+      // Edith's is a genuinely partial assessment with fields still
+      // outstanding, so hers is the one that actually demos the draft badge.
+      { label: 'Care Plan Draft — Edith Caldwell', to: '/customers/edith-caldwell/documents/care-plan' },
+      { label: 'What Is Important To Me — Edith Caldwell (before a recording is linked)', to: '/customers/edith-caldwell/documents/wiitm' },
+      // ?recording= deep-links straight into the drafted state, same as the
+      // "Linked to" click-through from the recording page itself.
+      { label: 'What Is Important To Me — Edith Caldwell (drafted from a recording)', to: '/customers/edith-caldwell/documents/wiitm?recording=wiitm-followup' },
+    ],
+  },
+  {
+    title: 'CareBridge — Recordings',
+    items: [
+      { label: 'What Is Important To Me — Follow-up — Edith Caldwell', to: '/customers/edith-caldwell/documents/recording/wiitm-followup' },
     ],
   },
   {

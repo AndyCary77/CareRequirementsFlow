@@ -49,16 +49,19 @@ export function RecordingDocumentPage() {
           </div>
         </div>
 
-        {/* Jumps to wherever this recording's draft actually lives — the
-            standalone Care Plan page when it's the focus, otherwise the main
-            CareBridge tab (no standalone page exists yet for other documents). */}
+        {/* Jumps to wherever this recording's draft actually lives — a
+            standalone document page (Care Plan, or another via
+            focusDocumentPath) when one exists, otherwise the main
+            CareBridge tab. */}
         <button
           type="button"
           onClick={() =>
             navigate(
               recording.isCarePlanFocus
                 ? `/customers/${customer.id}/documents/care-plan`
-                : `/customers/${customer.id}/carebridge?recording=${recording.id}&view=summary`
+                : recording.focusDocumentPath
+                  ? `/customers/${customer.id}/${recording.focusDocumentPath}?recording=${recording.id}`
+                  : `/customers/${customer.id}/carebridge?recording=${recording.id}&view=summary`
             )
           }
           className="flex items-center gap-1 text-sm font-medium text-[rgb(154,38,214)] hover:underline cursor-pointer flex-shrink-0"

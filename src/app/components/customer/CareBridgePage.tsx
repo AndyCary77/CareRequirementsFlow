@@ -964,6 +964,8 @@ export interface Recording {
   transcript: TranscriptLine[];
   focusDocumentName: string;
   isCarePlanFocus: boolean;
+  /** Relative path (under /customers/:id/) to the standalone document page this recording's draft lives on, when one exists — e.g. 'documents/wiitm'. Falls back to the main CareBridge tab when unset. */
+  focusDocumentPath?: string;
   focusSections: AssessmentSection[];
   focusOutcomes?: OutcomeSuggestion[];
   focusTasks?: TaskSuggestion[];
@@ -1049,6 +1051,7 @@ const RECORDINGS: Record<string, Recording[]> = {
       transcript: EDITH_WIITM_TRANSCRIPT,
       focusDocumentName: 'What Is Important To Me',
       isCarePlanFocus: false,
+      focusDocumentPath: 'documents/wiitm',
       focusSections: [],
       secondary: [],
       chat: [],
@@ -1590,9 +1593,12 @@ function TranscriptCheckPopover({
 /**
  * Renders a genuinely multi-field section (e.g. Personal details) as real,
  * editable form controls. Fields CareBridge drafted from the recording start
- * flagged for manual review (amber) until accepted individually, in bulk, or
+ * flagged for manual review (amber) until accepted individually, or
  * implicitly by editing them — fields the reviewer types in themselves need
  * no separate accept step, since typing them in is itself the review.
+ * No bulk "accept all": each drafted field is reviewed on its own, since
+ * accepting everything unread is exactly the risk this review step exists
+ * to catch.
  */
 export function FormFieldsView({
   fields,
@@ -1607,25 +1613,8 @@ export function FormFieldsView({
     onChange(fields.map(f => (f.id === id ? { ...f, ...patch } : f)));
   };
 
-  const pendingFields = fields.filter(f => isFieldCaptured(f) && f.reviewed === false);
-
-  const acceptAll = () => {
-    const acceptedAt = formatAcceptedAt(new Date());
-    onChange(fields.map(f => (isFieldCaptured(f) && f.reviewed === false ? { ...f, reviewed: true, reviewedBy: CURRENT_USER, reviewedAt: acceptedAt } : f)));
-  };
-
   return (
     <div>
-      {pendingFields.length > 0 && (
-        <div className="flex items-center justify-between gap-3 mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-          <p className="text-sm text-amber-800">
-            <span className="font-semibold">{pendingFields.length} {pendingFields.length === 1 ? 'field' : 'fields'}</span> drafted by CareBridge from this recording — review and accept.
-          </p>
-          <Button variant="secondary" size="sm" icon={<Check className="w-3.5 h-3.5" />} onClick={acceptAll}>
-            Accept all
-          </Button>
-        </div>
-      )}
       {fields.map(field => (
         <EditableFormField key={field.id} field={field} onChange={patch => updateField(field.id, patch)} transcript={transcript} />
       ))}
@@ -2261,6 +2250,8 @@ export const CareBridgeContext = createContext<{
   getProseSections: (recording: Recording) => Record<string, AssessmentSection>;
   setProseSections: (recordingId: string, sections: Record<string, AssessmentSection>) => void;
   hasPendingReview: (recording: Recording) => boolean;
+  /** How many drafted-but-unreviewed fields/sections remain across the whole recording — for the live "X fields to review" count next to a "CareBridge Draft" title. */
+  countPendingFields: (recording: Recording) => number;
 }>({
   tab: 'recording',
   setTab: () => {},
@@ -2275,6 +2266,7 @@ export const CareBridgeContext = createContext<{
   getProseSections: () => ({}),
   setProseSections: () => {},
   hasPendingReview: () => false,
+  countPendingFields: () => 0,
 });
 
 export function CareBridgeProvider({ children }: { children: React.ReactNode }) {
@@ -2329,12 +2321,19 @@ export function CareBridgeProvider({ children }: { children: React.ReactNode }) 
     const prosePending = Object.values(prose).some(s => s.reviewed === false);
     return formsPending || prosePending;
   };
+  const countPendingFields = (recording: Recording) => {
+    const forms = getFormSections(recording);
+    const prose = getProseSections(recording);
+    const formsPending = Object.values(forms).reduce((n, fields) => n + fields.filter(f => isFieldCaptured(f) && f.reviewed === false).length, 0);
+    const prosePending = Object.values(prose).filter(s => s.reviewed === false).length;
+    return formsPending + prosePending;
+  };
 
   return (
     <CareBridgeContext.Provider
       value={{
         tab, setTab, view, setView, recordingId, setRecordingId, chatOpen, setChatOpen,
-        getFormSections, setFormSections, getProseSections, setProseSections, hasPendingReview,
+        getFormSections, setFormSections, getProseSections, setProseSections, hasPendingReview, countPendingFields,
       }}
     >
       {children}

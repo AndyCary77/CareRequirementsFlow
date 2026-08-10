@@ -35,6 +35,7 @@ interface CarePlanDocumentState {
   linkedRecording: Recording | null;
   otherRecordings: Recording[];
   pendingReview: boolean;
+  pendingCount: number;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   passgeniusRef: React.RefObject<HTMLObjectElement | null>;
   handleUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -72,8 +73,12 @@ export function CarePlanDocumentProvider({ children }: { children: React.ReactNo
 
   // Publish is gated on review, same as the real CareBridge subnav's CTA —
   // a draft with un-reviewed AI-drafted fields can't be published yet.
-  const { hasPendingReview } = useReactContext(CareBridgeContext);
+  const { hasPendingReview, countPendingFields } = useReactContext(CareBridgeContext);
   const pendingReview = !!linkedRecording && hasPendingReview(linkedRecording);
+  // Drives the live "X fields to review" count next to the "CareBridge Draft"
+  // title — recomputed from the same per-recording review state on every
+  // render, so it ticks down as fields get accepted.
+  const pendingCount = linkedRecording ? countPendingFields(linkedRecording) : 0;
   const [published, setPublished] = useState(false);
 
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -93,7 +98,7 @@ export function CarePlanDocumentProvider({ children }: { children: React.ReactNo
     <CarePlanDocumentContext.Provider
       value={{
         customer, navigate, dirty, setDirty, published, setPublished, linkedSource, setLinkedSource,
-        linkedRecording, otherRecordings, pendingReview, fileInputRef, passgeniusRef, handleUpload, handleUnlink,
+        linkedRecording, otherRecordings, pendingReview, pendingCount, fileInputRef, passgeniusRef, handleUpload, handleUnlink,
       }}
     >
       {children}
@@ -134,7 +139,7 @@ export function CarePlanDocumentSubnav() {
                   some fields but not all, then coming back later) even though
                   Publish is the terminal action. Not gated on `dirty` here: that
                   flag only catches native onChange bubbling from text edits, not
-                  clicking Accept/Accept all, so it can't reliably tell whether
+                  clicking Accept, so it can't reliably tell whether
                   there's anything worth saving — always enabled instead. */}
               <Button
                 icon={<Save className="w-4 h-4" />}
@@ -161,7 +166,7 @@ export function CarePlanDocumentSubnav() {
 export function CarePlanDocumentContent() {
   const {
     customer, navigate, published, linkedSource, setLinkedSource, linkedRecording, otherRecordings,
-    pendingReview, fileInputRef, passgeniusRef, handleUpload, handleUnlink, setDirty, setPublished,
+    pendingReview, pendingCount, fileInputRef, passgeniusRef, handleUpload, handleUnlink, setDirty, setPublished,
   } = useCarePlanDocument();
 
   return (
@@ -186,120 +191,134 @@ export function CarePlanDocumentContent() {
           </div>
         </div>
       ) : (
-        // Same purple tint as the "CareBridge Assistant" header inside CareBridgePage.
+        // Two-toned rather than one purple-tinted block: a white top half for the
+        // icon/title/description, and a purple bottom half housing the action
+        // links/Publish button — those are all purple-branded, and against a
+        // purple-tinted top half (or an amber one, tried earlier) they clashed
+        // with the surrounding text. Splitting the panel keeps the purple
+        // confined to where it's actually branding something clickable. The
+        // pending count gets its own amber badge up top, so the banner still
+        // flags outstanding review work without fighting either half's colour.
         // Hovering anywhere on the panel plays the PASSgenius mark's own hover animation.
         <div
-          className="flex items-start gap-3 rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 shadow"
+          className="rounded-lg border border-purple-200 shadow overflow-hidden"
           onMouseEnter={() => triggerPassGeniusHover(passgeniusRef.current, true)}
           onMouseLeave={() => triggerPassGeniusHover(passgeniusRef.current, false)}
         >
-          <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 pt-1">
-            <object ref={passgeniusRef} type="image/svg+xml" data={passgeniusPurpleUrl} className="w-8 h-8" aria-label="PASSgenius" tabIndex={-1} />
+          <div className="flex items-start gap-3 bg-white px-4 py-3">
+            <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 pt-1">
+              <object ref={passgeniusRef} type="image/svg+xml" data={passgeniusPurpleUrl} className="w-8 h-8" aria-label="PASSgenius" tabIndex={-1} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-lg font-semibold text-purple-900 flex items-center gap-2">
+                CareBridge Draft
+                {pendingCount > 0 && (
+                  <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
+                    {pendingCount} {pendingCount === 1 ? 'field' : 'fields'} to review
+                  </span>
+                )}
+              </p>
+
+              {linkedRecording ? (
+                <p className="text-sm text-purple-800 mt-0.5">
+                  Generated from <strong>{linkedRecording.label}</strong>, recorded{' '}
+                  <strong>
+                    {linkedRecording.recordingMeta.split(' · ')[0]} at{' '}
+                    {linkedRecording.recordingMeta.split(' · ')[1].split('–')[0]}
+                  </strong>{' '}
+                  by <strong>{linkedRecording.recordedBy}</strong> — review the fields below and accept them to
+                  confirm they're correct before they're saved to the customer file.
+                </p>
+              ) : linkedSource?.type === 'upload' ? (
+                <p className="text-sm text-purple-800 mt-0.5">
+                  Generated from the uploaded recording <strong>{linkedSource.fileName}</strong> — review the fields
+                  below and accept them to confirm they're correct before they're saved to the customer file.
+                </p>
+              ) : (
+                <p className="text-sm text-purple-800 mt-0.5">
+                  No recording is linked to this draft — the fields below reflect whatever was last accepted. Link an
+                  existing recording or upload one to bring in new content.
+                </p>
+              )}
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-lg font-semibold text-purple-900">CareBridge Draft</p>
 
-            {/* pr-32 keeps the line from running the full panel width, so it
-                doesn't read as crowding the Publish button in the row below. */}
-            {linkedRecording ? (
-              <p className="text-sm text-purple-800 mt-0.5 pr-32">
-                Generated from <strong>{linkedRecording.label}</strong>, recorded{' '}
-                <strong>
-                  {linkedRecording.recordingMeta.split(' · ')[0]} at{' '}
-                  {linkedRecording.recordingMeta.split(' · ')[1].split('–')[0]}
-                </strong>{' '}
-                by <strong>{linkedRecording.recordedBy}</strong> — review the fields below and accept them to
-                confirm they're correct before they're saved to the customer file.
-              </p>
-            ) : linkedSource?.type === 'upload' ? (
-              <p className="text-sm text-purple-800 mt-0.5 pr-32">
-                Generated from the uploaded recording <strong>{linkedSource.fileName}</strong> — review the fields
-                below and accept them to confirm they're correct before they're saved to the customer file.
-              </p>
-            ) : (
-              <p className="text-sm text-purple-800 mt-0.5 pr-32">
-                No recording is linked to this draft — the fields below reflect whatever was last accepted. Link an
-                existing recording or upload one to bring in new content.
-              </p>
-            )}
+          {/* flex-wrap + a separate group for the links vs. the button means
+              the button drops to its own line rather than overlapping the
+              links when the panel's too narrow for both on one row. */}
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-purple-50 border-t border-purple-200 px-4 py-3">
+            <div className="flex items-center gap-4">
+              {linkedRecording && (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/customers/${customer.id}/documents/recording/${linkedRecording.id}`)}
+                  className="flex items-center gap-1 text-sm font-medium text-[rgb(154,38,214)] hover:underline cursor-pointer"
+                >
+                  View recording
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              )}
 
-            {/* flex-wrap + a separate group for the links vs. the button means
-                the button drops to its own line rather than overlapping the
-                links when the panel's too narrow for both on one row. */}
-            <div className="flex flex-wrap items-center justify-between gap-3 mt-2.5">
-              <div className="flex items-center gap-4">
-                {linkedRecording && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    onClick={() => navigate(`/customers/${customer.id}/documents/recording/${linkedRecording.id}`)}
                     className="flex items-center gap-1 text-sm font-medium text-[rgb(154,38,214)] hover:underline cursor-pointer"
                   >
-                    View recording
-                    <ChevronRight className="w-3.5 h-3.5" />
+                    {linkedSource ? 'Replace recording' : 'Link a recording'}
+                    <ChevronDown className="w-3.5 h-3.5" />
                   </button>
-                )}
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      type="button"
-                      className="flex items-center gap-1 text-sm font-medium text-[rgb(154,38,214)] hover:underline cursor-pointer"
-                    >
-                      {linkedSource ? 'Replace recording' : 'Link a recording'}
-                      <ChevronDown className="w-3.5 h-3.5" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-72">
-                    <DropdownMenuLabel>Choose a different recording</DropdownMenuLabel>
-                    {otherRecordings.length > 0 ? (
-                      otherRecordings.map(r => (
-                        <DropdownMenuItem
-                          key={r.id}
-                          onSelect={() => setLinkedSource({ type: 'recording', id: r.id })}
-                          className="flex items-center justify-between gap-3 py-2"
-                        >
-                          <span className="flex items-center gap-2 text-gray-900">
-                            <Mic className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                            {r.label}
-                          </span>
-                          <span className="text-sm text-gray-500 whitespace-nowrap flex-shrink-0">
-                            {r.recordingMeta.split(' · ')[0]}
-                          </span>
-                        </DropdownMenuItem>
-                      ))
-                    ) : (
-                      <DropdownMenuItem disabled className="text-gray-400">No other recordings for this customer</DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    {/* Deferred a tick — Radix closes the menu and restores focus
-                        right after onSelect, which can race with (and cancel) the
-                        native file dialog if triggered in the same tick. */}
-                    <DropdownMenuItem onSelect={() => setTimeout(() => fileInputRef.current?.click(), 0)} className="flex items-center gap-2">
-                      <Upload className="w-3.5 h-3.5 text-gray-400" />
-                      Upload a recording
-                    </DropdownMenuItem>
-                    {linkedSource && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={handleUnlink} className="flex items-center gap-2 text-red-600 focus:text-red-600">
-                          <Link2Off className="w-3.5 h-3.5" />
-                          Unlink recording
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-
-              <Button
-                icon={<Send className="w-4 h-4" />}
-                disabled={pendingReview}
-                title={pendingReview ? 'Accept the outstanding drafted fields before publishing' : undefined}
-                onClick={() => setPublished(true)}
-              >
-                Publish
-              </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-72">
+                  <DropdownMenuLabel>Choose a different recording</DropdownMenuLabel>
+                  {otherRecordings.length > 0 ? (
+                    otherRecordings.map(r => (
+                      <DropdownMenuItem
+                        key={r.id}
+                        onSelect={() => setLinkedSource({ type: 'recording', id: r.id })}
+                        className="flex items-center justify-between gap-3 py-2"
+                      >
+                        <span className="flex items-center gap-2 text-gray-900">
+                          <Mic className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                          {r.label}
+                        </span>
+                        <span className="text-sm text-gray-500 whitespace-nowrap flex-shrink-0">
+                          {r.recordingMeta.split(' · ')[0]}
+                        </span>
+                      </DropdownMenuItem>
+                    ))
+                  ) : (
+                    <DropdownMenuItem disabled className="text-gray-400">No other recordings for this customer</DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  {/* Deferred a tick — Radix closes the menu and restores focus
+                      right after onSelect, which can race with (and cancel) the
+                      native file dialog if triggered in the same tick. */}
+                  <DropdownMenuItem onSelect={() => setTimeout(() => fileInputRef.current?.click(), 0)} className="flex items-center gap-2">
+                    <Upload className="w-3.5 h-3.5 text-gray-400" />
+                    Upload a recording
+                  </DropdownMenuItem>
+                  {linkedSource && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onSelect={handleUnlink} className="flex items-center gap-2 text-red-600 focus:text-red-600">
+                        <Link2Off className="w-3.5 h-3.5" />
+                        Unlink recording
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
+
+            <Button
+              icon={<Send className="w-4 h-4" />}
+              disabled={pendingReview}
+              title={pendingReview ? 'Accept the outstanding drafted fields before publishing' : undefined}
+              onClick={() => setPublished(true)}
+            >
+              Publish
+            </Button>
           </div>
         </div>
       )}

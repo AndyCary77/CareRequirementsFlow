@@ -1,5 +1,5 @@
 import { createContext, useContext as useReactContext, useState, useRef, useEffect, Fragment } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { ArrowLeft, History, Save, Printer, Trash2, Mic, ChevronDown, ChevronRight, Upload, Link2Off, CheckCircle2, Send, Check, Loader2 } from 'lucide-react';
 import { Button } from '../../buttons/Button';
 import {
@@ -64,6 +64,7 @@ interface WiitmDocumentState {
   otherRecordings: Recording[];
   fields: FormField[];
   pendingReview: boolean;
+  pendingCount: number;
   processingStep: number | null;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   passgeniusRef: React.RefObject<HTMLObjectElement | null>;
@@ -95,15 +96,25 @@ export function WiitmDocumentProvider({ children }: { children: React.ReactNode 
   const passgeniusRef = useRef<HTMLObjectElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [linkedSource, setLinkedSource] = useState<LinkedSource>(null);
-  const [fields, setFields] = useState<FormField[]>(WIITM_FIELDS_BLANK);
+  // A deep link from elsewhere (e.g. the recording/transcript page's "Linked
+  // to" click-through) can land straight on this draft already linked to the
+  // recording that generated it, rather than the usual blank starting state.
+  const [searchParams] = useSearchParams();
+  const linkedRecordingId = searchParams.get('recording');
+  const [linkedSource, setLinkedSource] = useState<LinkedSource>(linkedRecordingId ? { type: 'recording', id: linkedRecordingId } : null);
+  const [fields, setFields] = useState<FormField[]>(linkedRecordingId ? WIITM_FIELDS_DRAFT : WIITM_FIELDS_BLANK);
   const linkedRecording = linkedSource?.type === 'recording' ? resolveRecording(customer.id, linkedSource.id) : null;
   const otherRecordings = resolveRecordings(customer.id).filter(r => linkedSource?.type !== 'recording' || r.id !== linkedSource.id);
 
   // No CareBridgeContext here — this document isn't part of the Care Plan's
   // per-recording formSections, so pending review is just this page's own
   // field state, checked the same way isFieldCaptured does (text/textarea only).
-  const pendingReview = fields.some(f => !!f.value && f.reviewed === false);
+  const pendingFields = fields.filter(f => !!f.value && f.reviewed === false);
+  const pendingReview = pendingFields.length > 0;
+  // Drives the live "X fields to review" count next to the "CareBridge Draft"
+  // title — recomputed from `fields` on every render, so it ticks down as
+  // fields get accepted.
+  const pendingCount = pendingFields.length;
   const [published, setPublished] = useState(false);
 
   // Null = idle. 0..PROCESSING_STEPS.length-1 = that step's spinner is
@@ -155,7 +166,7 @@ export function WiitmDocumentProvider({ children }: { children: React.ReactNode 
     <WiitmDocumentContext.Provider
       value={{
         customer, navigate, dirty, setDirty, published, setPublished, linkedSource, linkedRecording,
-        otherRecordings, fields, pendingReview, processingStep, fileInputRef, passgeniusRef, handleUpload,
+        otherRecordings, fields, pendingReview, pendingCount, processingStep, fileInputRef, passgeniusRef, handleUpload,
         handleUnlink, startProcessing, updateGroupFields,
       }}
     >
@@ -197,7 +208,7 @@ export function WiitmDocumentSubnav() {
                   some fields but not all, then coming back later) even though
                   Publish is the terminal action. Not gated on `dirty` here: that
                   flag only catches native onChange bubbling from text edits, not
-                  clicking Accept/Accept all, so it can't reliably tell whether
+                  clicking Accept, so it can't reliably tell whether
                   there's anything worth saving — always enabled instead. */}
               <Button
                 icon={<Save className="w-4 h-4" />}
@@ -223,7 +234,7 @@ export function WiitmDocumentSubnav() {
 /** Everything below the pinned sub-nav — the CareBridge Draft/processing panel, title bar, History and the form itself. */
 export function WiitmDocumentContent() {
   const {
-    customer, navigate, published, linkedSource, linkedRecording, otherRecordings, fields, pendingReview,
+    customer, navigate, published, linkedSource, linkedRecording, otherRecordings, fields, pendingReview, pendingCount,
     processingStep, fileInputRef, passgeniusRef, handleUpload, handleUnlink, startProcessing, updateGroupFields,
     setDirty, setPublished,
   } = useWiitmDocument();
@@ -294,104 +305,121 @@ export function WiitmDocumentContent() {
           </div>
         </div>
       ) : linkedSource ? (
+        // Two-toned rather than one purple-tinted block: a white top half for the
+        // icon/title/description, and a purple bottom half housing the action
+        // links/Publish button — those are all purple-branded, and against a
+        // purple-tinted top half (or an amber one, tried earlier) they clashed
+        // with the surrounding text. Splitting the panel keeps the purple
+        // confined to where it's actually branding something clickable. The
+        // pending count gets its own amber badge up top, so the banner still
+        // flags outstanding review work without fighting either half's colour.
         <div
-          className="flex items-start gap-3 rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 shadow"
+          className="rounded-lg border border-purple-200 shadow overflow-hidden"
           onMouseEnter={() => triggerPassGeniusHover(passgeniusRef.current, true)}
           onMouseLeave={() => triggerPassGeniusHover(passgeniusRef.current, false)}
         >
-          <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 pt-1">
-            <object ref={passgeniusRef} type="image/svg+xml" data={passgeniusPurpleUrl} className="w-8 h-8" aria-label="PASSgenius" tabIndex={-1} />
+          <div className="flex items-start gap-3 bg-white px-4 py-3">
+            <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 pt-1">
+              <object ref={passgeniusRef} type="image/svg+xml" data={passgeniusPurpleUrl} className="w-8 h-8" aria-label="PASSgenius" tabIndex={-1} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-lg font-semibold text-purple-900 flex items-center gap-2">
+                CareBridge Draft
+                {pendingCount > 0 && (
+                  <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
+                    {pendingCount} {pendingCount === 1 ? 'field' : 'fields'} to review
+                  </span>
+                )}
+              </p>
+
+              {linkedRecording ? (
+                <p className="text-sm text-purple-800 mt-0.5">
+                  Generated from <strong>{linkedRecording.label}</strong>, recorded{' '}
+                  <strong>
+                    {linkedRecording.recordingMeta.split(' · ')[0]} at{' '}
+                    {linkedRecording.recordingMeta.split(' · ')[1].split('–')[0]}
+                  </strong>{' '}
+                  by <strong>{linkedRecording.recordedBy}</strong> — review the fields below and accept them to
+                  confirm they're correct before they're saved to the customer file.
+                </p>
+              ) : (
+                <p className="text-sm text-purple-800 mt-0.5">
+                  Generated from the uploaded recording <strong>{linkedSource.fileName}</strong> — review the fields
+                  below and accept them to confirm they're correct before they're saved to the customer file.
+                </p>
+              )}
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-lg font-semibold text-purple-900">CareBridge Draft</p>
 
-            {linkedRecording ? (
-              <p className="text-sm text-purple-800 mt-0.5 pr-32">
-                Generated from <strong>{linkedRecording.label}</strong>, recorded{' '}
-                <strong>
-                  {linkedRecording.recordingMeta.split(' · ')[0]} at{' '}
-                  {linkedRecording.recordingMeta.split(' · ')[1].split('–')[0]}
-                </strong>{' '}
-                by <strong>{linkedRecording.recordedBy}</strong> — review the fields below and accept them to
-                confirm they're correct before they're saved to the customer file.
-              </p>
-            ) : (
-              <p className="text-sm text-purple-800 mt-0.5 pr-32">
-                Generated from the uploaded recording <strong>{linkedSource.fileName}</strong> — review the fields
-                below and accept them to confirm they're correct before they're saved to the customer file.
-              </p>
-            )}
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-purple-50 border-t border-purple-200 px-4 py-3">
+            <div className="flex items-center gap-4">
+              {linkedRecording && (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/customers/${customer.id}/documents/recording/${linkedRecording.id}`)}
+                  className="flex items-center gap-1 text-sm font-medium text-[rgb(154,38,214)] hover:underline cursor-pointer"
+                >
+                  View recording
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              )}
 
-            <div className="flex flex-wrap items-center justify-between gap-3 mt-2.5">
-              <div className="flex items-center gap-4">
-                {linkedRecording && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    onClick={() => navigate(`/customers/${customer.id}/documents/recording/${linkedRecording.id}`)}
                     className="flex items-center gap-1 text-sm font-medium text-[rgb(154,38,214)] hover:underline cursor-pointer"
                   >
-                    View recording
-                    <ChevronRight className="w-3.5 h-3.5" />
+                    Replace recording
+                    <ChevronDown className="w-3.5 h-3.5" />
                   </button>
-                )}
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      type="button"
-                      className="flex items-center gap-1 text-sm font-medium text-[rgb(154,38,214)] hover:underline cursor-pointer"
-                    >
-                      Replace recording
-                      <ChevronDown className="w-3.5 h-3.5" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-72">
-                    <DropdownMenuLabel>Choose a recording</DropdownMenuLabel>
-                    {otherRecordings.length > 0 ? (
-                      otherRecordings.map(r => (
-                        <DropdownMenuItem
-                          key={r.id}
-                          onSelect={() => startProcessing({ type: 'recording', id: r.id })}
-                          className="flex items-center justify-between gap-3 py-2"
-                        >
-                          <span className="flex items-center gap-2 text-gray-900">
-                            <Mic className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                            {r.label}
-                          </span>
-                          <span className="text-sm text-gray-500 whitespace-nowrap flex-shrink-0">
-                            {r.recordingMeta.split(' · ')[0]}
-                          </span>
-                        </DropdownMenuItem>
-                      ))
-                    ) : (
-                      <DropdownMenuItem disabled className="text-gray-400">No other recordings for this customer</DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    {/* Deferred a tick — Radix closes the menu and restores focus
-                        right after onSelect, which can race with (and cancel) the
-                        native file dialog if triggered in the same tick. */}
-                    <DropdownMenuItem onSelect={() => setTimeout(() => fileInputRef.current?.click(), 0)} className="flex items-center gap-2">
-                      <Upload className="w-3.5 h-3.5 text-gray-400" />
-                      Upload a recording
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={handleUnlink} className="flex items-center gap-2 text-red-600 focus:text-red-600">
-                      <Link2Off className="w-3.5 h-3.5" />
-                      Unlink recording
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-
-              <Button
-                icon={<Send className="w-4 h-4" />}
-                disabled={pendingReview}
-                title={pendingReview ? 'Accept the outstanding drafted fields before publishing' : undefined}
-                onClick={() => setPublished(true)}
-              >
-                Publish
-              </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-72">
+                  <DropdownMenuLabel>Choose a recording</DropdownMenuLabel>
+                  {otherRecordings.length > 0 ? (
+                    otherRecordings.map(r => (
+                      <DropdownMenuItem
+                        key={r.id}
+                        onSelect={() => startProcessing({ type: 'recording', id: r.id })}
+                        className="flex items-center justify-between gap-3 py-2"
+                      >
+                        <span className="flex items-center gap-2 text-gray-900">
+                          <Mic className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                          {r.label}
+                        </span>
+                        <span className="text-sm text-gray-500 whitespace-nowrap flex-shrink-0">
+                          {r.recordingMeta.split(' · ')[0]}
+                        </span>
+                      </DropdownMenuItem>
+                    ))
+                  ) : (
+                    <DropdownMenuItem disabled className="text-gray-400">No other recordings for this customer</DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  {/* Deferred a tick — Radix closes the menu and restores focus
+                      right after onSelect, which can race with (and cancel) the
+                      native file dialog if triggered in the same tick. */}
+                  <DropdownMenuItem onSelect={() => setTimeout(() => fileInputRef.current?.click(), 0)} className="flex items-center gap-2">
+                    <Upload className="w-3.5 h-3.5 text-gray-400" />
+                    Upload a recording
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={handleUnlink} className="flex items-center gap-2 text-red-600 focus:text-red-600">
+                    <Link2Off className="w-3.5 h-3.5" />
+                    Unlink recording
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
+
+            <Button
+              icon={<Send className="w-4 h-4" />}
+              disabled={pendingReview}
+              title={pendingReview ? 'Accept the outstanding drafted fields before publishing' : undefined}
+              onClick={() => setPublished(true)}
+            >
+              Publish
+            </Button>
           </div>
         </div>
       ) : (

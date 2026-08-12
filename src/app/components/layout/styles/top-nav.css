@@ -64,12 +64,26 @@
 .top-nav-genius-btn:hover,
 .top-nav-genius-btn.active { background: none; }
 
-/* Icon tooltip — fixed-positioned (via portal) and centered under the
-   icon, arrow pointing up. Matches the shared/side-nav tooltip look. */
+/* Sits between the avatar and the nav-mode switch — gives the switch its
+   own zone rather than reading as one more icon fused onto the end of
+   the strip. Same treatment as the legacy bar's divider, in a neutral
+   grey rather than purple to suit this bar's white background. */
+.top-nav-divider {
+  width: 1px;
+  height: 16px;
+  background: #e5e7eb;
+  flex-shrink: 0;
+}
+
+/* Icon tooltip — fixed-positioned via portal, arrow pointing up. Matches
+   the shared/side-nav tooltip look. `left`/`transform` are set inline per
+   instance (centered under the trigger normally, clamped to stay
+   on-screen once its real width is known — see useEdgeAwareTooltip,
+   needed since the avatar/PASSgenius icons sit close to the right edge).
+   The arrow's own position follows via `--arrow-left`, set alongside it. */
 .top-nav-tooltip {
   position: fixed;
   z-index: 1100;
-  transform: translateX(-50%);
   background: #fff;
   color: var(--greyscale-2-grey-20, #333);
   border: 1px solid var(--ui-purple-5-languid-lavendar, #dcd9e4);
@@ -92,7 +106,7 @@
   content: '';
   position: absolute;
   bottom: 100%;
-  left: 50%;
+  left: var(--arrow-left, 50%);
   transform: translateX(-50%);
   border: 6px solid transparent;
   border-bottom-color: var(--ui-purple-5-languid-lavendar, #dcd9e4);
@@ -101,7 +115,7 @@
   content: '';
   position: absolute;
   bottom: 100%;
-  left: 50%;
+  left: var(--arrow-left, 50%);
   transform: translateX(-50%);
   margin-bottom: -1px;
   border: 5px solid transparent;

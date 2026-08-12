@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import passgeniusUrl from '../icons/passgenius.svg'
+import { NavModeToggle } from './NavModeToggle'
+import { useEdgeAwareTooltip } from '../../hooks/useEdgeAwareTooltip'
 import './styles/top-nav.css'
 
 // ─── Nav icons ────────────────────────────────────────────────
@@ -53,13 +55,15 @@ export default function TopNav({ activeItem, unreadMessages = 0, onLogout, userN
 
   // Custom tooltip, centered under the hovered icon (native title is too
   // slow). Portaled to <body> so it isn't clipped or stacked below the
-  // sticky bars — same approach as the side-nav tooltip.
-  const [tip, setTip] = useState(null)
+  // sticky bars — same approach as the side-nav tooltip. Edge-aware since
+  // the avatar/PASSgenius icons sit close to the right edge of the screen,
+  // where a naively-centered tooltip would run off it.
+  const [tipText, setTipText] = useState(null)
+  const { anchor: tip, pos: tipPos, boxRef: tipBoxRef, show: showTipAt, hide: hideTip } = useEdgeAwareTooltip()
   const showTip = (e, text) => {
-    const r = e.currentTarget.getBoundingClientRect()
-    setTip({ text, top: Math.round(r.bottom + 8), left: Math.round(r.left + r.width / 2) })
+    setTipText(text)
+    showTipAt(e)
   }
-  const hideTip = () => setTip(null)
 
   return (
     <div className="top-nav">
@@ -130,9 +134,29 @@ export default function TopNav({ activeItem, unreadMessages = 0, onLogout, userN
         )}
       </div>
 
+      {/* Marks the switch as its own zone rather than just another icon in
+          the row — without it, the toggle read as fused onto the end of
+          the icon strip instead of set apart from it. */}
+      <span className="top-nav-divider" />
+
+      {/* Far right, after everything else — lets someone opt back into the
+          old single-top-bar layout without disrupting anyone happy with
+          this one. */}
+      <NavModeToggle variant="light" current="new" />
+
       {tip && createPortal(
-        <div className="top-nav-tooltip" style={{ top: tip.top, left: tip.left }}>
-          {tip.text}
+        <div
+          ref={tipBoxRef}
+          className="top-nav-tooltip"
+          style={{
+            top: tip.top,
+            left: tipPos ? tipPos.left : tip.center,
+            transform: tipPos ? 'none' : 'translateX(-50%)',
+            visibility: tipPos ? 'visible' : 'hidden',
+            '--arrow-left': tipPos ? `${tipPos.arrowLeft}px` : '50%',
+          }}
+        >
+          {tipText}
         </div>,
         document.body
       )}

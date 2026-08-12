@@ -1,0 +1,135 @@
+.nav-mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: Barlow, sans-serif;
+  flex-shrink: 0;
+}
+
+.nav-mode-toggle-label {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.nav-mode-toggle-track {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  border-radius: 999px;
+  transition: background 0.18s cubic-bezier(0.34, 1.2, 0.64, 1);
+  flex-shrink: 0;
+}
+
+.nav-mode-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform 0.18s cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+/* A single "New UI" switch: right/coloured while resting on the new nav,
+   left/grey while resting on the legacy one. Briefly flips to the opposite
+   pose as a click animates out, right before the real mode change swaps
+   the whole shell out from under it. */
+.nav-mode-toggle[aria-checked='true'] .nav-mode-toggle-thumb {
+  transform: translateX(16px);
+}
+.nav-mode-toggle:disabled {
+  cursor: default;
+}
+
+/* Light variant — sits on the new top bar's white background. No visible
+   label: every other control on this bar (Journal, Messages, Help,
+   PASSgenius, avatar) is icon-only with a hover tooltip, and a text label
+   here was the main thing making this control stand out from its
+   neighbours rather than sitting quietly among them. The tooltip still
+   carries the same explanation. */
+.nav-mode-toggle--light .nav-mode-toggle-label { display: none; }
+.nav-mode-toggle--light .nav-mode-toggle-track { background: #d1d5db; }
+/* Softer than a solid saturated purple track (tried first, read as too
+   heavy against this bar's otherwise quiet, mostly-grey palette) — light
+   lavender track with the colour carried by the knob instead, matching
+   how "active" is already shown elsewhere in the app (e.g. the selected
+   side-nav item's light-lavender-bg-plus-purple-foreground treatment)
+   rather than a solid block of brand purple. */
+.nav-mode-toggle--light[aria-checked='true'] .nav-mode-toggle-track { background: #f3e8fd; }
+.nav-mode-toggle--light[aria-checked='true'] .nav-mode-toggle-thumb { background: #9a26d6; }
+
+/* Dark variant — sits on the legacy bar's solid purple background. Gets
+   its own rounded border, setting it apart as a distinct chip rather than
+   blending into the bar the way the light variant can against its
+   already-white background. */
+.nav-mode-toggle--dark .nav-mode-toggle-label { color: #e9d5ff; }
+.nav-mode-toggle--dark .nav-mode-toggle-track { background: rgba(255, 255, 255, 0.3); }
+.nav-mode-toggle--dark[aria-checked='true'] .nav-mode-toggle-track { background: #ffffff; }
+.nav-mode-toggle--dark[aria-checked='true'] .nav-mode-toggle-thumb { background: #6d1b98; }
+.nav-mode-toggle--dark {
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 999px;
+  transition: border-color 0.12s ease;
+}
+.nav-mode-toggle--dark:hover {
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+/* Custom tooltip — fixed-positioned via portal, arrow pointing up.
+   Matches the side-nav/top-bar icon tooltips' look, but kept
+   self-contained here rather than depending on whichever bar's own
+   stylesheet happens to be loaded. Shows instantly (no delay), unlike the
+   browser's native `title` tooltip.
+   `left`/`transform` are set inline per-instance (centered under the
+   trigger normally, clamped to stay on-screen once its real width is
+   known — see useEdgeAwareTooltip). The arrow's own position is driven by
+   `--arrow-left`, set alongside it, so the arrow keeps pointing at the
+   trigger even once the box itself has shifted off-center to avoid
+   clipping against the viewport edge. */
+.nav-mode-toggle-tooltip {
+  position: fixed;
+  z-index: 1100;
+  background: #fff;
+  color: var(--greyscale-2-grey-20, #333);
+  border: 1px solid var(--ui-purple-5-languid-lavendar, #dcd9e4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-family: Barlow, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: nav-mode-toggle-tooltip-in 0.1s ease;
+}
+@keyframes nav-mode-toggle-tooltip-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.nav-mode-toggle-tooltip::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: var(--arrow-left, 50%);
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-bottom-color: var(--ui-purple-5-languid-lavendar, #dcd9e4);
+}
+.nav-mode-toggle-tooltip::after {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: var(--arrow-left, 50%);
+  transform: translateX(-50%);
+  margin-bottom: -1px;
+  border: 5px solid transparent;
+  border-bottom-color: #fff;
+}

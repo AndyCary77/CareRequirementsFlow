@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { RouterProvider } from 'react-router';
 import { router } from './routes';
+import { NavModeProvider } from './components/layout/NavModeContext';
 
 export default function App() {
   useEffect(() => {
@@ -8,5 +9,9 @@ export default function App() {
     document.body.style.setProperty('overflow-anchor', 'none');
   }, []);
 
-  return <RouterProvider router={router} />;
+  return (
+    <NavModeProvider>
+      <RouterProvider router={router} />
+    </NavModeProvider>
+  );
 }

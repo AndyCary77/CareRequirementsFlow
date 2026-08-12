@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { createBrowserRouter } from "react-router";
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
@@ -27,10 +28,36 @@ import { TagTypeDetailPage } from './components/office/TagTypeDetailPage';
 import { CustomerProvider } from './data/CustomerContext';
 import SideNav from './components/layout/SideNav';
 import TopNav from './components/layout/TopNav';
+import { useNavMode } from './components/layout/NavModeContext';
 
 // ─── Shared shell ──────────────────────────────────────────────────────────────
 
-function AppShell({ infoBar, children }: { infoBar?: React.ReactNode; children: React.ReactNode }) {
+// Legacy mode drops the side rail entirely and goes back to the old
+// single top-bar layout — that's what "legacy" meant before the new side
+// nav existed, not just a different-looking top bar alongside the rail.
+function LegacyAppShell({ infoBar, children }: { infoBar?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col min-h-screen bg-gray-50">
+      <div className="sticky top-0 z-40">
+        <Header />
+        {infoBar}
+      </div>
+      <main className="flex-1 max-w-[1600px] w-full mx-auto px-6 py-6">
+        {children}
+      </main>
+    </div>
+  );
+}
+
+// Matches NavModeToggle's own SLIDE_MS — by the time that switch animation
+// finishes and actually calls toggle(), the shell swap itself should feel
+// like a continuation of the same motion, not a second separate delay.
+const SHELL_CROSSFADE_MS = 150;
+
+function renderShellFor(mode: 'new' | 'legacy', infoBar: React.ReactNode, children: React.ReactNode) {
+  if (mode === 'legacy') {
+    return <LegacyAppShell infoBar={infoBar}>{children}</LegacyAppShell>;
+  }
   return (
     <div className="flex min-h-screen bg-gray-50">
       <SideNav />
@@ -43,6 +70,40 @@ function AppShell({ infoBar, children }: { infoBar?: React.ReactNode; children: 
           {children}
         </main>
       </div>
+    </div>
+  );
+}
+
+function AppShell({ infoBar, children }: { infoBar?: React.ReactNode; children: React.ReactNode }) {
+  const { mode } = useNavMode();
+  // Rendered mode lags the real one by one crossfade — dips to opacity 0,
+  // swaps which shell is actually mounted while invisible, then fades back
+  // in. A true side-by-side dissolve isn't really possible here (the side
+  // rail and the legacy top bar occupy different shapes of screen, and
+  // overlapping them would mean mounting the page's own content twice at
+  // once), so this is a quick fade-out/fade-in instead — fast enough that
+  // it reads as one continuous crossfade rather than two separate steps.
+  const [displayMode, setDisplayMode] = useState(mode);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    if (mode === displayMode) return;
+    setVisible(false);
+    const timer = setTimeout(() => {
+      setDisplayMode(mode);
+      setVisible(true);
+    }, SHELL_CROSSFADE_MS);
+    return () => clearTimeout(timer);
+  }, [mode, displayMode]);
+
+  return (
+    <div
+      style={{
+        opacity: visible ? 1 : 0,
+        transition: `opacity ${SHELL_CROSSFADE_MS}ms ease`,
+      }}
+    >
+      {renderShellFor(displayMode, infoBar, children)}
     </div>
   );
 }

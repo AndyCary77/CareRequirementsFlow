@@ -1,0 +1,41 @@
+/**
+ * Design tokens for the side nav rail + top bar (SideNav.jsx / TopNav.jsx).
+ * Wired up here so the custom properties those stylesheets reference
+ * (side-nav.css, top-nav.css) resolve to real, intentional values instead
+ * of silently falling back to an inline default — or, for a couple of
+ * them, rendering with no colour at all since no fallback existed.
+ *
+ * See the "Design Tokens — Navigation" Confluence page (linked from
+ * AIOP-23646) for the full spec these are sourced from.
+ *
+ * Where a name already exists in the mobile app's shared palette
+ * (src/app/components/mobile/assets/colors.css), the same value is reused
+ * here so web and mobile agree — that file isn't loaded by the web build,
+ * so duplicating the handful of values actually needed is simplest for now
+ * rather than pulling the whole mobile palette into the web bundle.
+ */
+:root {
+  /* Side nav selected item background/foreground */
+  --side-nav-active-bg: #f3e8fd;
+  --brand-purple-6-purple-4: #9a26d6; /* matches the mobile palette's own value */
+
+  /* Tooltips (side nav + top nav), avatar dropdown menu border/text */
+  --greyscale-2-grey-20: #333; /* matches the mobile palette's own value */
+  --ui-purple-5-languid-lavendar: #dcd9e4; /* matches the mobile palette's own value */
+
+  /* Avatar dropdown "Log out" item hover — previously undefined (no
+     fallback in top-nav.css), so this hover state rendered with no
+     highlight at all. Now sourced from the mobile palette. */
+  --ui-purple-7-lightest-lavendar: #f5f5f6;
+
+  /* Avatar initials background. NOTE: the mobile palette's own value for
+     this name is #e0e9f2 — slightly different from the fallback already
+     shipped here. Kept the shipped value rather than silently changing
+     what's currently rendering; flag with design before aligning the two. */
+  --availability-4-blue-tint: #e3edf7;
+
+  /* Messages unread-count badge — previously undefined (no fallback in
+     top-nav.css), so the badge rendered with no background at all. Now
+     sourced from the mobile palette. */
+  --rag-red-red-overdue: #e31c4a;
+}

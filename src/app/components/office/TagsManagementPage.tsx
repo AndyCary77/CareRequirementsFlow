@@ -1,27 +1,17 @@
 import { useMemo, useState } from 'react';
 import { Search, Tag as TagIcon } from 'lucide-react';
-import { SubnavTabs } from '../tabs/SubnavTabs';
 import { Button } from '../buttons/Button';
 import { TAG_TYPE_GROUPS } from './tagsMockData';
 import { TagTypeListItem } from './TagTypeListItem';
-
-// Office-level tabs, matching the real tenant's tab bar (see the DOM sample
-// supplied when this page was built). Only "Tags" has real content here —
-// this page exists to prototype the Environment tag type banners below, not
-// to rebuild the rest of the Office section.
-const OFFICE_TABS = [
-  { id: 'details', label: 'Details' },
-  { id: 'checklists', label: 'Checklists' },
-  { id: 'documents', label: 'Documents' },
-  { id: 'files', label: 'Files' },
-  { id: 'groups', label: 'Care Groups' },
-  { id: 'tags', label: 'Tags' },
-  { id: 'roster', label: 'Roster Settings' },
-  { id: 'settings', label: 'Settings and Permissions' },
-];
+import { OfficeDetailsPage } from './OfficeDetailsPage';
+import { useOffice, OFFICE_TABS } from './OfficeContext';
 
 export function TagsManagementPage() {
-  const [activeTab, setActiveTab] = useState('tags');
+  // Tab state (and, for "Details", the form state + Save action) is owned
+  // by OfficeProvider and shared with the pinned OfficeSubnav — same shape
+  // as CareManagementContext, since the top CTA row needs to reach into
+  // whatever this page is currently showing.
+  const { activeTab } = useOffice();
   const [queryInput, setQueryInput] = useState('');
   const [query, setQuery] = useState('');
 
@@ -37,18 +27,10 @@ export function TagsManagementPage() {
   }, [query]);
 
   return (
-    <div className="flex flex-col max-w-5xl mx-auto w-full">
-      {/* Breadcrumb — same size as the customer name title in CustomerInfoNav */}
-      <div className="mb-4">
-        <h2 className="text-xl font-semibold text-gray-900">Office</h2>
-      </div>
-
-      {/* Office tabs */}
-      <div className="border-b border-gray-200 mb-6">
-        <SubnavTabs tabs={OFFICE_TABS} activeTab={activeTab} onChange={setActiveTab} className="flex justify-center gap-6" />
-      </div>
-
-      {activeTab !== 'tags' ? (
+    <div className={`flex flex-col mx-auto w-full ${activeTab === 'details' ? 'max-w-6xl' : 'max-w-5xl'}`}>
+      {activeTab === 'details' ? (
+        <OfficeDetailsPage />
+      ) : activeTab !== 'tags' ? (
         <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400 text-sm">
           {OFFICE_TABS.find(t => t.id === activeTab)?.label} — coming soon
         </div>

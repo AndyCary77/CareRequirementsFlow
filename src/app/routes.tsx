@@ -25,6 +25,8 @@ import { AboutMePage, AboutMeSubnav } from './components/customer/AboutMePage';
 import { CareBridgePage, CareBridgeProvider, CareBridgeSubnav } from './components/customer/CareBridgePage';
 import { TagsManagementPage } from './components/office/TagsManagementPage';
 import { TagTypeDetailPage } from './components/office/TagTypeDetailPage';
+import { OfficeProvider } from './components/office/OfficeContext';
+import { OfficeSubnav } from './components/office/OfficeSubnav';
 import { CustomerProvider } from './data/CustomerContext';
 import SideNav from './components/layout/SideNav';
 import TopNav from './components/layout/TopNav';
@@ -260,9 +262,11 @@ function ScheduleLayout() {
 
 function OfficeLayout() {
   return (
-    <AppShell>
-      <TagsManagementPage />
-    </AppShell>
+    <OfficeProvider>
+      <AppShell infoBar={<OfficeSubnav />}>
+        <TagsManagementPage />
+      </AppShell>
+    </OfficeProvider>
   );
 }
 

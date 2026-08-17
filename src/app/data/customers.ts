@@ -68,7 +68,7 @@ export const CUSTOMERS: Record<string, CustomerProfile> = {
     postcode: 'WS13 6RT',
     addressOneLine: '7 Meadowbank Close, Lichfield, WS13 6RT',
     hasCarePlan: false,
-    landingTab: 'carebridge',
+    landingTab: 'caremanagement',
   },
 };
 

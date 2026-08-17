@@ -5,28 +5,53 @@ import { Button } from '../../buttons/Button';
 import { useCareManagement } from './CareManagementContext';
 import { useCareData } from './useCareData';
 import { type CareTask } from './types';
-import { OutcomeBadge, VisitBadge, ActiveBadge, StatusToggle, EmptyTab, inputClass, labelClass, CATEGORY_CONFIG } from './shared';
+import { OutcomeBadge, VisitBadge, ActiveBadge, StatusToggle, EmptyTab, inputClass, labelClass, CATEGORY_CONFIG, DraftActionBar, CarePlanDraftBanner } from './shared';
+
+/**
+ * Medication summary chips. `prn` is a boolean rather than a string, so it
+ * needs labelling — rendering the raw value printed a chip that just said
+ * "true". Keyed by field name since two fields can share a value.
+ */
+function MedicationChips({ details }: { details: NonNullable<CareTask['medicationDetails']> }) {
+  const chips = Object.entries(details)
+    .filter(([, val]) => val !== undefined && val !== '' && val !== false)
+    .map(([key, val]) => ({ key, label: key === 'prn' ? 'PRN' : String(val) }));
+
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-2.5">
+      {chips.map(({ key, label }) => (
+        <span key={key} className="text-xs font-medium px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-200">{label}</span>
+      ))}
+    </div>
+  );
+}
 
 function TaskCard({ task, onSelect }: { task: CareTask; onSelect: () => void }) {
   const { OUTCOMES, VISITS } = useCareData();
+  const { accept, discard } = useCareManagement();
   const outcomes = OUTCOMES.filter(o => task.outcomeIds.includes(o.id));
   const visits = VISITS.filter(v => task.visitIds.includes(v.id));
   const { bg, text, border, circleBg, Icon } = CATEGORY_CONFIG[task.category];
+  const pending = task.reviewed === false;
 
   return (
     <div
       onClick={onSelect}
-      className="bg-white rounded-lg border border-gray-200 overflow-hidden cursor-pointer hover:border-purple-300 hover:shadow-md transition-all group"
+      className={`bg-white rounded-lg border overflow-hidden cursor-pointer hover:shadow-md transition-all group ${
+        pending ? 'border-amber-300 hover:border-amber-400' : 'border-gray-200 hover:border-purple-300'
+      }`}
     >
-      <div className={`flex items-center justify-between px-5 py-3 border-b ${bg} ${border}`}>
-        <div className="flex items-center gap-2">
+      <div className={`flex items-center justify-between gap-3 px-5 py-3 border-b ${bg} ${border}`}>
+        <div className="flex items-center gap-2 min-w-0">
           <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${circleBg}`}>
             <Icon className={`w-5 h-5 ${text}`} />
           </div>
           <span className={`text-base font-semibold ${text}`}>{task.title}</span>
-          <ArrowRight className={`w-4 h-4 ${text} opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200`} />
+          <ArrowRight className={`w-4 h-4 ${text} opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 flex-shrink-0`} />
         </div>
-        <ActiveBadge status={task.status} />
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <ActiveBadge status={task.status} reviewed={task.reviewed} />
+        </div>
       </div>
 
       <div className="px-5 py-4 grid grid-cols-[1fr_auto_1fr_1fr] gap-6 items-start">
@@ -35,13 +60,7 @@ function TaskCard({ task, onSelect }: { task: CareTask; onSelect: () => void }) 
           <p className="text-sm text-gray-700 leading-relaxed">
             {task.description.length > 120 ? task.description.slice(0, 120) + '...' : task.description}
           </p>
-          {task.medicationDetails && (
-            <div className="flex flex-wrap gap-1.5 mt-2.5">
-              {Object.entries(task.medicationDetails).map(([, val]) => val && (
-                <span key={val} className="text-xs font-medium px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-200">{val}</span>
-              ))}
-            </div>
-          )}
+          {task.medicationDetails && <MedicationChips details={task.medicationDetails} />}
         </div>
 
         {/* Dates */}
@@ -68,20 +87,60 @@ function TaskCard({ task, onSelect }: { task: CareTask; onSelect: () => void }) 
           <div className="flex flex-wrap gap-1.5">
             {visits.map(v => <VisitBadge key={v.id} title={v.title} />)}
           </div>
+          {visits.length === 0 && (
+            <p className="text-xs text-amber-700">Not in any visit yet — add one in Rostering.</p>
+          )}
         </div>
       </div>
+
+      {pending && (
+        <DraftActionBar
+          source={task.draftSource}
+          itemLabel="task"
+          onAccept={() => accept(task.id)}
+          onDiscard={() => discard(task.id)}
+          edge="bottom"
+        />
+      )}
     </div>
   );
 }
 
-function TaskEditForm({ task }: { task: CareTask }) {
-  const { OUTCOMES, VISITS } = useCareData();
+function TaskEditForm({ task, onDiscarded }: { task: CareTask; onDiscarded: () => void }) {
+  const { OUTCOMES, VISITS, pending, draftSource } = useCareData();
+  const { accept, discard, setDirty } = useCareManagement();
   const { Icon, bg, text, border } = CATEGORY_CONFIG[task.category];
   const med = task.medicationDetails;
+  const isDraft = task.reviewed === false;
+  const [linkedVisitIds, setLinkedVisitIds] = useState<string[]>(task.visitIds);
+  const [linkedOutcomeIds, setLinkedOutcomeIds] = useState<string[]>(task.outcomeIds);
+  const toggleVisit = (id: string) =>
+    setLinkedVisitIds(prev => (prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id]));
+  const toggleOutcome = (id: string) =>
+    setLinkedOutcomeIds(prev => (prev.includes(id) ? prev.filter(o => o !== id) : [...prev, id]));
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-      <div className="grid grid-cols-2 divide-x divide-gray-200">
+    <div className="space-y-4">
+      <CarePlanDraftBanner
+        pendingOutcomes={pending.outcomes}
+        pendingTasks={pending.tasks}
+        source={draftSource}
+        activeTab="tasks"
+      />
+
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        {isDraft && (
+          <DraftActionBar
+            source={task.draftSource}
+            itemLabel="task"
+            onAccept={() => accept(task.id)}
+            onDiscard={() => { discard(task.id); onDiscarded(); }}
+            edge="top"
+          />
+        )}
+        {/* A single bubbled onChange here catches every field in both
+            columns below, rather than wiring setDirty into each one. */}
+        <div className="grid grid-cols-2 divide-x divide-gray-200" onChange={() => setDirty(true)}>
 
         {/* ── LEFT COLUMN ── */}
         <div className="px-6 py-5 space-y-5">
@@ -237,7 +296,7 @@ function TaskEditForm({ task }: { task: CareTask }) {
           {/* Status */}
           <div>
             <label className={labelClass}>Status</label>
-            <StatusToggle value={task.status} />
+            <StatusToggle value={task.status} reviewed={task.reviewed} />
           </div>
 
           {/* Completion options */}
@@ -264,17 +323,21 @@ function TaskEditForm({ task }: { task: CareTask }) {
                   Hide inactive visits
                 </label>
               </div>
-              {VISITS.map(v => (
-                <label key={v.id} className="flex items-center gap-2.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    defaultChecked={task.visitIds.includes(v.id)}
-                    className="rounded border-gray-300 accent-[rgb(154,38,214)] w-4 h-4 cursor-pointer"
-                  />
-                  <span className="text-sm text-gray-700">{v.title}</span>
-                  <span className="text-xs text-gray-400">({v.startTime} – {v.endTime}, {v.cadence === 'Alternate week' ? 'Biweekly' : v.cadence})</span>
-                </label>
-              ))}
+              {VISITS.map(v => {
+                const checked = linkedVisitIds.includes(v.id);
+                return (
+                  <label key={v.id} className={`flex items-center gap-2.5 cursor-pointer ${!checked ? 'opacity-40' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleVisit(v.id)}
+                      className="rounded border-gray-300 accent-[rgb(154,38,214)] w-4 h-4 cursor-pointer"
+                    />
+                    <span className="text-sm text-gray-700">{v.title}</span>
+                    <span className="text-xs text-gray-400">({v.startTime} – {v.endTime}, {v.cadence === 'Alternate week' ? 'Biweekly' : v.cadence})</span>
+                  </label>
+                );
+              })}
             </div>
           </div>
 
@@ -282,16 +345,20 @@ function TaskEditForm({ task }: { task: CareTask }) {
           <div>
             <label className={labelClass}>Outcomes aided</label>
             <div className="border border-gray-200 rounded-lg p-3 space-y-2">
-              {OUTCOMES.map(o => (
-                <label key={o.id} className="flex items-center gap-2.5 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    defaultChecked={task.outcomeIds.includes(o.id)}
-                    className="rounded border-gray-300 accent-[rgb(154,38,214)] w-4 h-4 cursor-pointer"
-                  />
-                  <span className="text-sm text-gray-700">{o.title}</span>
-                </label>
-              ))}
+              {OUTCOMES.map(o => {
+                const checked = linkedOutcomeIds.includes(o.id);
+                return (
+                  <label key={o.id} className={`flex items-center gap-2.5 cursor-pointer ${!checked ? 'opacity-40' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleOutcome(o.id)}
+                      className="rounded border-gray-300 accent-[rgb(154,38,214)] w-4 h-4 cursor-pointer"
+                    />
+                    <span className="text-sm text-gray-700">{o.title}</span>
+                  </label>
+                );
+              })}
             </div>
           </div>
 
@@ -311,39 +378,68 @@ function TaskEditForm({ task }: { task: CareTask }) {
 
         </div>
       </div>
+      </div>
     </div>
   );
 }
 
-export function TasksTab() {
-  const { TASKS } = useCareData();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const selected = selectedId ? TASKS.find(t => t.id === selectedId) : null;
-  const { registerBack, clearBack } = useCareManagement();
+// Sentinel id for a not-yet-saved task — never present in TASKS, so it can't
+// collide with a real one. TaskEditForm just renders a blank template for
+// it; nothing is added to the underlying data until a real save flow exists,
+// same as every other field on this form today.
+const NEW_TASK_ID = 'new-task';
 
+function blankTask(): CareTask {
+  return { id: NEW_TASK_ID, title: '', category: 'General', description: '', startDate: '', outcomeIds: [], visitIds: [], status: 'active' };
+}
+
+export function TasksTab() {
+  const { TASKS, pending, draftSource } = useCareData();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = selectedId === NEW_TASK_ID ? blankTask() : selectedId ? TASKS.find(t => t.id === selectedId) : null;
+  const { registerBack, clearBack, registerAdd, clearAdd, registerDelete, clearDelete, discard } = useCareManagement();
+
+  // "Add Task" lives in the subnav's actions row, not here — only the list
+  // view offers it, same scoping as the back button being detail-only.
+  // "Delete Task" is the mirror image: detail-only, replacing Print/Save
+  // rather than sitting alongside them. Deleting reuses the same discard
+  // mechanism the draft flow uses — it already drops any id from TASKS
+  // regardless of review state, which is exactly "remove this task".
   useEffect(() => {
     if (selectedId) {
       registerBack(() => setSelectedId(null));
+      clearAdd();
+      registerDelete('Task', () => { discard(selectedId); setSelectedId(null); });
     } else {
       clearBack();
+      registerAdd('Add Task', () => setSelectedId(NEW_TASK_ID));
+      clearDelete();
     }
-    return () => clearBack();
+    return () => { clearBack(); clearAdd(); clearDelete(); };
   }, [selectedId]);
 
   if (selected) {
-    return <TaskEditForm task={selected} />;
-  }
-
-  if (TASKS.length === 0) {
-    return <EmptyTab label="tasks" />;
+    return <TaskEditForm task={selected} onDiscarded={() => setSelectedId(null)} />;
   }
 
   return (
     <div className="space-y-4">
-      {TASKS.map(task => (
-        <TaskCard key={task.id} task={task} onSelect={() => setSelectedId(task.id)} />
-      ))}
-      <p className="text-xs text-center text-gray-400 pt-2">Version 7 was modified 4 months ago by Sharon Hunter</p>
+      {TASKS.length === 0 ? (
+        <EmptyTab label="tasks" />
+      ) : (
+        <>
+          <CarePlanDraftBanner
+            pendingOutcomes={pending.outcomes}
+            pendingTasks={pending.tasks}
+            source={draftSource}
+            activeTab="tasks"
+          />
+          {TASKS.map(task => (
+            <TaskCard key={task.id} task={task} onSelect={() => setSelectedId(task.id)} />
+          ))}
+          <p className="text-xs text-center text-gray-400 pt-2">Version 7 was modified 4 months ago by Sharon Hunter</p>
+        </>
+      )}
     </div>
   );
 }

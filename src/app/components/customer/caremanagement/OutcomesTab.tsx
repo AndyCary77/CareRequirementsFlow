@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { StarSolidIcon } from '../../icons/CarePlanIcons';
-import { Button } from '../../buttons/Button';
 import { useCareManagement } from './CareManagementContext';
 import { useCareData } from './useCareData';
 import { TASK_CATEGORIES, type Outcome } from './types';
-import { TaskBadge, VisitBadge, ActiveBadge, StatusToggle, EmptyTab, inputClass, labelClass, CATEGORY_CONFIG } from './shared';
+import { TaskBadge, VisitBadge, ActiveBadge, StatusToggle, EmptyTab, inputClass, labelClass, CATEGORY_CONFIG, DraftActionBar, CarePlanDraftBanner } from './shared';
 
 function OutcomeCard({ outcome, onSelect }: { outcome: Outcome; onSelect: () => void }) {
   const { TASKS, VISITS } = useCareData();
+  const { accept, discard } = useCareManagement();
   const tasks = TASKS.filter(t => outcome.taskIds.includes(t.id));
   const visits = VISITS.filter(v => outcome.visitIds.includes(v.id));
+  const pending = outcome.reviewed === false;
   const preview = outcome.whatICanDo.length > 220
     ? outcome.whatICanDo.slice(0, 220) + '...'
     : outcome.whatICanDo;
@@ -18,17 +19,21 @@ function OutcomeCard({ outcome, onSelect }: { outcome: Outcome; onSelect: () => 
   return (
     <div
       onClick={onSelect}
-      className="bg-white rounded-lg border border-gray-200 overflow-hidden cursor-pointer hover:border-purple-300 hover:shadow-md transition-all group"
+      className={`bg-white rounded-lg border overflow-hidden cursor-pointer hover:shadow-md transition-all group ${
+        pending ? 'border-amber-300 hover:border-amber-400' : 'border-gray-200 hover:border-purple-300'
+      }`}
     >
-      <div className="flex items-center justify-between px-5 py-3 border-b" style={{ backgroundColor: '#feefdc', borderColor: '#fcd9a8' }}>
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-3 px-5 py-3 border-b" style={{ backgroundColor: '#feefdc', borderColor: '#fcd9a8' }}>
+        <div className="flex items-center gap-2 min-w-0">
           <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#fcdfb0' }}>
             <StarSolidIcon className="w-5 h-5 text-amber-700" />
           </div>
           <span className="text-base font-semibold text-amber-800">{outcome.title}</span>
-          <ArrowRight className="w-4 h-4 text-amber-800 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" />
+          <ArrowRight className="w-4 h-4 text-amber-800 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 flex-shrink-0" />
         </div>
-        <ActiveBadge status={outcome.status} />
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <ActiveBadge status={outcome.status} reviewed={outcome.reviewed} />
+        </div>
       </div>
 
       <div className="px-5 py-4 space-y-3">
@@ -65,24 +70,64 @@ function OutcomeCard({ outcome, onSelect }: { outcome: Outcome; onSelect: () => 
               {visits.map(v => <VisitBadge key={v.id} title={v.title} />)}
             </div>
           ) : (
-            <p className="text-sm text-gray-400 italic">None</p>
+            <>
+              <p className="text-sm text-gray-400 italic">None</p>
+              {/* Visits originate in the Rostering service agreement, so an
+                  outcome can be drafted with nothing able to deliver it yet. */}
+              <p className="text-xs text-amber-700 mt-1">
+                No visit can deliver this yet — add one to the service agreement in Rostering.
+              </p>
+            </>
           )}
         </div>
 
       </div>
+
+      {pending && (
+        <DraftActionBar
+          source={outcome.draftSource}
+          itemLabel="outcome"
+          onAccept={() => accept(outcome.id)}
+          onDiscard={() => discard(outcome.id)}
+          edge="bottom"
+        />
+      )}
     </div>
   );
 }
 
-function OutcomeEditForm({ outcome }: { outcome: Outcome }) {
-  const { TASKS, OUTCOMES } = useCareData();
+function OutcomeEditForm({ outcome, onDiscarded }: { outcome: Outcome; onDiscarded: () => void }) {
+  const { TASKS, OUTCOMES, pending, draftSource } = useCareData();
+  const { accept, discard, setDirty } = useCareManagement();
   const OUTCOME_TITLES = OUTCOMES.map(o => o.title);
+  const isDraft = outcome.reviewed === false;
+  const [linkedTaskIds, setLinkedTaskIds] = useState<string[]>(outcome.taskIds);
+  const toggleTask = (id: string) =>
+    setLinkedTaskIds(prev => (prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]));
 
   return (
-    <div>
+    <div className="space-y-4">
+      <CarePlanDraftBanner
+        pendingOutcomes={pending.outcomes}
+        pendingTasks={pending.tasks}
+        source={draftSource}
+        activeTab="outcomes"
+      />
 
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="px-6 py-5 space-y-5">
+        {isDraft && (
+          <DraftActionBar
+            source={outcome.draftSource}
+            itemLabel="outcome"
+            onAccept={() => accept(outcome.id)}
+            onDiscard={() => { discard(outcome.id); onDiscarded(); }}
+            edge="top"
+          />
+        )}
+        {/* A single bubbled onChange here catches every field below — text
+            inputs, selects, and the task checkboxes — rather than wiring
+            setDirty into each one individually. */}
+        <div className="px-6 py-5 space-y-5" onChange={() => setDirty(true)}>
           {/* Outcome type + Status row */}
           <div className="grid grid-cols-2 gap-6">
             <div>
@@ -104,7 +149,7 @@ function OutcomeEditForm({ outcome }: { outcome: Outcome }) {
             </div>
             <div>
               <label className={labelClass}>Status</label>
-              <StatusToggle value={outcome.status} />
+              <StatusToggle value={outcome.status} reviewed={outcome.reviewed} />
             </div>
           </div>
 
@@ -156,12 +201,13 @@ function OutcomeEditForm({ outcome }: { outcome: Outcome }) {
                           <p className="text-xs text-gray-300 italic">None</p>
                         )}
                         {catTasks.map(task => {
-                          const checked = outcome.taskIds.includes(task.id);
+                          const checked = linkedTaskIds.includes(task.id);
                           return (
                             <label key={task.id} className={`flex items-center gap-2.5 cursor-pointer group ${!checked ? 'opacity-40' : ''}`}>
                               <input
                                 type="checkbox"
-                                defaultChecked={checked}
+                                checked={checked}
+                                onChange={() => toggleTask(task.id)}
                                 className="rounded border-gray-300 accent-[rgb(154,38,214)] w-4 h-4 cursor-pointer"
                               />
                               <Icon className="w-4 h-4 text-gray-400 flex-shrink-0" />
@@ -182,35 +228,63 @@ function OutcomeEditForm({ outcome }: { outcome: Outcome }) {
   );
 }
 
-export function OutcomesTab() {
-  const { OUTCOMES } = useCareData();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const selected = selectedId ? OUTCOMES.find(o => o.id === selectedId) : null;
-  const { registerBack, clearBack } = useCareManagement();
+// Sentinel id for a not-yet-saved outcome — never present in OUTCOMES, so
+// it can't collide with a real one. OutcomeEditForm just renders a blank
+// template for it; nothing is added to the underlying data until a real
+// save flow exists, same as every other field on this form today.
+const NEW_OUTCOME_ID = 'new-outcome';
 
+function blankOutcome(): Outcome {
+  return { id: NEW_OUTCOME_ID, title: '', type: 'custom', whatICanDo: '', aims: '', taskIds: [], visitIds: [], status: 'active' };
+}
+
+export function OutcomesTab() {
+  const { OUTCOMES, pending, draftSource } = useCareData();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = selectedId === NEW_OUTCOME_ID ? blankOutcome() : selectedId ? OUTCOMES.find(o => o.id === selectedId) : null;
+  const { registerBack, clearBack, registerAdd, clearAdd, registerDelete, clearDelete, discard } = useCareManagement();
+
+  // "Add Outcome" lives in the subnav's actions row, not here — only the
+  // list view offers it, same scoping as the back button being detail-only.
+  // "Delete Outcome" is the mirror image: detail-only, replacing Print/Save
+  // rather than sitting alongside them. Deleting reuses the same discard
+  // mechanism the draft flow uses — it already drops any id from OUTCOMES
+  // regardless of review state, which is exactly "remove this outcome".
   useEffect(() => {
     if (selectedId) {
       registerBack(() => setSelectedId(null));
+      clearAdd();
+      registerDelete('Outcome', () => { discard(selectedId); setSelectedId(null); });
     } else {
       clearBack();
+      registerAdd('Add Outcome', () => setSelectedId(NEW_OUTCOME_ID));
+      clearDelete();
     }
-    return () => clearBack();
+    return () => { clearBack(); clearAdd(); clearDelete(); };
   }, [selectedId]);
 
   if (selected) {
-    return <OutcomeEditForm outcome={selected} />;
-  }
-
-  if (OUTCOMES.length === 0) {
-    return <EmptyTab label="outcomes" />;
+    return <OutcomeEditForm outcome={selected} onDiscarded={() => setSelectedId(null)} />;
   }
 
   return (
     <div className="space-y-4">
-      {OUTCOMES.map(outcome => (
-        <OutcomeCard key={outcome.id} outcome={outcome} onSelect={() => setSelectedId(outcome.id)} />
-      ))}
-      <p className="text-xs text-center text-gray-400 pt-2">Version 7 was modified 4 months ago by Sharon Hunter</p>
+      {OUTCOMES.length === 0 ? (
+        <EmptyTab label="outcomes" />
+      ) : (
+        <>
+          <CarePlanDraftBanner
+            pendingOutcomes={pending.outcomes}
+            pendingTasks={pending.tasks}
+            source={draftSource}
+            activeTab="outcomes"
+          />
+          {OUTCOMES.map(outcome => (
+            <OutcomeCard key={outcome.id} outcome={outcome} onSelect={() => setSelectedId(outcome.id)} />
+          ))}
+          <p className="text-xs text-center text-gray-400 pt-2">Version 7 was modified 4 months ago by Sharon Hunter</p>
+        </>
+      )}
     </div>
   );
 }

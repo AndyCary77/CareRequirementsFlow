@@ -5,7 +5,7 @@ import { Button } from '../../buttons/Button';
 import { useCareManagement } from './CareManagementContext';
 import { useCareData } from './useCareData';
 import { TASK_CATEGORIES, type CareVisit } from './types';
-import { OutcomeBadge, TaskBadge, ActiveBadge, EmptyTab, labelClass, CATEGORY_CONFIG } from './shared';
+import { OutcomeBadge, TaskBadge, ActiveBadge, EmptyTab, labelClass, CATEGORY_CONFIG, CarePlanDraftBanner } from './shared';
 
 const DAYS_ABBR = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -222,7 +222,7 @@ function VisitEditForm({ visit }: { visit: CareVisit }) {
 }
 
 export function VisitsTab() {
-  const { VISITS } = useCareData();
+  const { VISITS, pending, draftSource } = useCareData();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = selectedId ? VISITS.find(v => v.id === selectedId) : null;
   const { registerBack, clearBack } = useCareManagement();
@@ -246,6 +246,15 @@ export function VisitsTab() {
 
   return (
     <div className="space-y-4">
+      {/* Visits themselves are never drafted — they come from the service
+          agreement — but the banner still shows here so the outstanding review
+          count is visible from every tab of the care plan. */}
+      <CarePlanDraftBanner
+        pendingOutcomes={pending.outcomes}
+        pendingTasks={pending.tasks}
+        source={draftSource}
+        activeTab="visits"
+      />
       {VISITS.map(visit => (
         <VisitCard key={visit.id} visit={visit} onSelect={() => setSelectedId(visit.id)} />
       ))}

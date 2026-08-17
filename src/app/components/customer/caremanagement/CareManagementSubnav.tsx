@@ -1,57 +1,105 @@
-import { ArrowLeft, Printer } from 'lucide-react';
+import { ArrowLeft, Plus, Printer } from 'lucide-react';
 import { Button } from '../../buttons/Button';
 import { SubnavTabs } from '../../tabs/SubnavTabs';
+import { DeleteButton } from './shared';
 import { useCareManagement } from './CareManagementContext';
+import { useCareData } from './useCareData';
 import { useScrolled } from '../../../hooks/useScrolled';
 import { useCustomer } from '../../../data/CustomerContext';
 
 type Tab = 'outcomes' | 'tasks' | 'visits' | 'caregroups';
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'outcomes',   label: 'Outcomes' },
-  { id: 'tasks',      label: 'Tasks' },
-  { id: 'visits',     label: 'Visits' },
-  { id: 'caregroups', label: 'Care Groups' },
-];
-
 export function CareManagementSubnav() {
-  const { activeTab, setActiveTab, backFn } = useCareManagement();
+  const { activeTab, setActiveTab, backFn, addFn, deleteFn, dirty, setDirty } = useCareManagement();
+  const { pending } = useCareData();
   const scrolled = useScrolled();
   const customer = useCustomer();
 
+  // Counts of CareBridge-drafted items still awaiting review, so the work is
+  // findable from whichever tab you're on. SubnavTabs hides a zero badge.
+  const TABS: { id: Tab; label: string; badge?: number }[] = [
+    { id: 'outcomes',   label: 'Outcomes',   badge: pending.outcomes },
+    { id: 'tasks',      label: 'Tasks',      badge: pending.tasks },
+    { id: 'visits',     label: 'Visits' },
+    { id: 'caregroups', label: 'Care Groups' },
+  ];
+
   return (
     <div className="bg-gray-50 border-b border-gray-200">
-      <div className={`max-w-5xl w-full mx-auto flex items-center justify-between gap-4 transition-all duration-300 ${scrolled ? 'py-2' : 'py-3.5'}`}>
-        {/* Left — back button in detail view, review date in list view */}
-        <div className="flex items-center gap-3 min-w-[180px]">
-          {backFn ? (
-            <Button variant="tertiary" icon={<ArrowLeft className="w-4 h-4" />} onClick={backFn.fn}>
-              Back to list
-            </Button>
-          ) : customer.hasCarePlan ? (
-            <div className="flex flex-col gap-0.5">
-              <span className="text-xs text-gray-500 whitespace-nowrap">Next review</span>
-              <span
-                className="px-2.5 py-1 text-xs font-bold text-white whitespace-nowrap w-fit"
-                style={{ backgroundColor: '#d4183d', borderRadius: '6px' }}
-              >
-                26-03-2026
-              </span>
-            </div>
-          ) : null}
+      <div className="max-w-5xl w-full mx-auto">
+        {/* Row 1 — Back/review date + actions. Kept separate from the tabs
+            row below (same reasoning as CarePlanDocumentSubnav): actions of
+            varying width — Add Outcome/Add Task included, via addFn below —
+            would otherwise crowd the tabs and throw off how they centre. */}
+        <div className={`flex items-center justify-between gap-4 transition-all duration-300 ${scrolled ? 'py-2' : 'py-3.5'}`}>
+          <div className="flex items-center gap-3 min-w-[180px]">
+            {backFn ? (
+              <Button variant="tertiary" icon={<ArrowLeft className="w-4 h-4" />} onClick={backFn.fn}>
+                Back to list
+              </Button>
+            ) : customer.hasCarePlan ? (
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs text-gray-500 whitespace-nowrap">Next review</span>
+                <span
+                  className="px-2.5 py-1 text-xs font-bold text-white whitespace-nowrap w-fit"
+                  style={{ backgroundColor: '#d4183d', borderRadius: '6px' }}
+                >
+                  26-03-2026
+                </span>
+              </div>
+            ) : pending.outcomes + pending.tasks > 0 ? (
+              // No live plan yet, but there's a CareBridge draft awaiting
+              // review — same slot the saved-plan review date sits in,
+              // amber to match the Draft badge used on the drafted cards.
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs text-gray-500 whitespace-nowrap">Care plan</span>
+                <span className="px-2.5 py-1 text-xs font-bold uppercase text-amber-800 whitespace-nowrap w-fit rounded-md border border-amber-300 bg-amber-100">
+                  Draft
+                </span>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="flex items-center gap-3">
+            {deleteFn ? (
+              // Detail view: the only destructive action available, standing
+              // alone rather than mixed in with Print/Save.
+              <DeleteButton onDelete={deleteFn.fn} itemLabel={deleteFn.label} />
+            ) : (
+              <>
+                <Button variant="tertiary" icon={<Printer className="w-4 h-4" />}>Print</Button>
+                {/* "Update" once there's a live plan to modify, "Save" while
+                    there's nothing live yet (e.g. Edith, still all-draft) —
+                    same distinction as CarePlanDocumentSubnav's Save/Save
+                    Draft. Disabled until something's actually changed. */}
+                <Button disabled={!dirty} onClick={() => setDirty(false)}>
+                  {customer.hasCarePlan ? 'Update' : 'Save'}
+                </Button>
+                {addFn && (
+                  <Button icon={<Plus className="w-4 h-4" />} onClick={addFn.fn}>
+                    {addFn.label}
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
-        {/* Centre — tabs */}
-        <SubnavTabs tabs={TABS} activeTab={activeTab} onChange={id => setActiveTab(id as Tab)} />
-
-        {/* Right — actions */}
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none whitespace-nowrap">
+        {/* Row 2 — tabs + Hide inactive. Equal 1fr flanks keep the tabs
+            genuinely centred regardless of the checkbox's width, rather than
+            just centred between two arbitrary side widths. */}
+        <div className={`border-t border-gray-200 grid grid-cols-[1fr_auto_1fr] items-center gap-4 transition-all duration-300 ${scrolled ? 'py-2' : 'py-3'}`}>
+          <div />
+          <SubnavTabs
+            tabs={TABS}
+            activeTab={activeTab}
+            onChange={id => setActiveTab(id as Tab)}
+            className="flex justify-center items-center gap-8"
+          />
+          <label className="flex items-center justify-end gap-2 text-sm text-gray-600 cursor-pointer select-none whitespace-nowrap">
             <input type="checkbox" defaultChecked className="rounded border-gray-300 accent-[rgb(154,38,214)]" />
             Hide inactive
           </label>
-          <Button variant="tertiary" icon={<Printer className="w-4 h-4" />}>Print</Button>
-          <Button>Save</Button>
         </div>
       </div>
     </div>

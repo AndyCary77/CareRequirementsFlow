@@ -10,7 +10,20 @@ export interface MedicationDetails {
   prn?: boolean;
 }
 
-export interface CareTask {
+/**
+ * Review state for records CareBridge drafted from a recording. Deliberately
+ * mirrors AssessmentSection.reviewed / FormField.reviewed in CareBridgePage:
+ *   undefined — human-authored record, nothing to review (all of Arthur's)
+ *   false     — drafted by CareBridge, still pending a reviewer's acceptance
+ *   true      — a reviewer has accepted it
+ */
+interface DraftReviewState {
+  reviewed?: boolean;
+  /** Which recording it was drafted from, e.g. "Initial Assessment, 7 Jul 2026". Shown on the pending card so a reviewer knows what they're being asked to trust. */
+  draftSource?: string;
+}
+
+export interface CareTask extends DraftReviewState {
   id: string;
   title: string;
   category: TaskCategory;
@@ -22,7 +35,7 @@ export interface CareTask {
   medicationDetails?: MedicationDetails;
 }
 
-export interface Outcome {
+export interface Outcome extends DraftReviewState {
   id: string;
   title: string;
   type: 'template' | 'custom';
@@ -201,8 +214,12 @@ export const VISITS: CareVisit[] = [
   },
 ];
 
-// ─── New enquiry customer — visits created at enquiry stage to plan the rota,
-//     but no outcomes or tasks yet (the care plan hasn't been built). ─────────────
+// ─── New enquiry customer — visits were created at enquiry stage to plan the
+//     rota (they live in the Rostering service agreement and are read-only
+//     here); the outcomes and tasks below are CareBridge's draft of the care
+//     plan, generated from her assessment recording and linked onto those
+//     existing visits. Nothing has been accepted yet — every outcome and task
+//     carries reviewed: false. ───────────────────────────────────────────────
 export const EDITH_VISITS: CareVisit[] = [
   {
     id: 'ev1',
@@ -215,8 +232,10 @@ export const EDITH_VISITS: CareVisit[] = [
     duration: '45 minutes',
     cadence: 'Weekly',
     weeks: [{ activeDays: [0, 1, 2, 3, 4, 5, 6] }],
-    outcomeIds: [],
-    taskIds: [],
+    outcomeIds: ['eo1', 'eo2', 'eo3', 'eo4'],
+    // Order is the running order within the visit: steady her on arrival,
+    // personal care, breakfast, morning meds, then a drink left within reach.
+    taskIds: ['et7', 'et1', 'et2', 'et5', 'et4', 'et6'],
     status: 'active',
   },
   {
@@ -230,9 +249,183 @@ export const EDITH_VISITS: CareVisit[] = [
     duration: '30 minutes',
     cadence: 'Weekly',
     weeks: [{ activeDays: [0, 1, 2, 3, 4, 5, 6] }],
-    outcomeIds: [],
-    taskIds: [],
+    outcomeIds: ['eo1', 'eo3', 'eo4', 'eo5'],
+    taskIds: ['et7', 'et3', 'et9', 'et4', 'et6', 'et8'],
     status: 'active',
+  },
+];
+
+// Every outcome/task below is drafted from this one recording. Kept as a const
+// so the attribution shown on each pending card can't drift between them.
+const EDITH_DRAFT_SOURCE = 'Initial Assessment, 7 Jul 2026';
+
+// NB: CareBridgePage.tsx also exports EDITH_OUTCOMES/EDITH_TASKS, but those are
+// the lightweight OutcomeSuggestion/TaskSuggestion shapes shown on the
+// CareBridge tab. These are the real care-plan records.
+//
+// Content is drawn only from her Initial Assessment transcript — her WIITM
+// follow-up recording contradicts it (walking stick vs. frame, lives with
+// husband vs. alone) and is not treated as a source for care needs.
+// `type: 'custom'` throughout: these were drafted from a conversation, not
+// picked from the template library like Arthur's.
+export const EDITH_OUTCOMES: Outcome[] = [
+  {
+    id: 'eo1',
+    title: 'Maintain Safe Mobility & Reduce Falls Risk',
+    type: 'custom',
+    whatICanDo: 'Edith mobilises indoors with a walking frame and was rated a high falls risk by her physiotherapist following a fractured hip. Please supervise her transfers and movement around the bungalow, and keep walkways clear of trip hazards. There are two steps down to the back door — Edith will not attempt these alone and should not be encouraged to.',
+    aims: 'Edith stays steady and confident moving around her own home, with no further falls.',
+    taskIds: ['et7'],
+    visitIds: ['ev1', 'ev2'],
+    status: 'active',
+    reviewed: false,
+    draftSource: EDITH_DRAFT_SOURCE,
+  },
+  {
+    id: 'eo2',
+    title: 'Support with Personal Care & Dignity',
+    type: 'custom',
+    whatICanDo: 'Edith washes her upper body independently and wants to keep doing so. She needs assistance to wash her legs and feet and to dress, both of which have been a struggle since the hip fracture. Edith has asked for a female carer for personal care — please respect this preference.',
+    aims: 'Edith is clean, comfortable and dressed each morning, keeping as much independence and privacy as she can.',
+    taskIds: ['et1'],
+    visitIds: ['ev1'],
+    status: 'active',
+    reviewed: false,
+    draftSource: EDITH_DRAFT_SOURCE,
+  },
+  {
+    id: 'eo3',
+    title: 'Maintain Adequate Dietary & Fluid Intake',
+    type: 'custom',
+    whatICanDo: 'Edith cannot stand long enough to cook and has been living largely on biscuits. She also forgets to drink. Please prepare a nourishing breakfast and lunch, encourage her to eat while you are there, and leave a drink within reach before you leave. Record what she has eaten and drunk in the care notes.',
+    aims: 'Edith eats two proper meals a day and drinks regularly, with her appetite and weight stable.',
+    taskIds: ['et2', 'et3', 'et4', 'et9'],
+    visitIds: ['ev1', 'ev2'],
+    status: 'active',
+    reviewed: false,
+    draftSource: EDITH_DRAFT_SOURCE,
+  },
+  {
+    id: 'eo4',
+    title: 'Management of Medical Conditions and Medication',
+    type: 'custom',
+    whatICanDo: "Edith takes amlodipine for her blood pressure and co-codamol as required for arthritis and hip pain, but does not always remember them. Please prompt her medication and record what is taken. Her daughter reports Edith's memory has declined over the past year — note and report any change in memory, confusion or general wellbeing to the office.",
+    aims: 'Edith takes her prescribed medication consistently, her pain is well managed, and any change in her memory is picked up early.',
+    taskIds: ['et5', 'et6', 'et9'],
+    visitIds: ['ev1', 'ev2'],
+    status: 'active',
+    reviewed: false,
+    draftSource: EDITH_DRAFT_SOURCE,
+  },
+  {
+    id: 'eo5',
+    title: 'Support with Daily Living to Remain at Home',
+    type: 'custom',
+    whatICanDo: 'Edith has lived in her bungalow for thirty years and is determined to stay there. She cannot carry things while using her frame, so she needs help with laundry and changing her bed. Always ask before starting a task — Edith has always done for herself and finds needing help frustrating.',
+    aims: 'Edith carries on living independently in her own home, with the practical tasks she can no longer manage taken care of.',
+    taskIds: ['et8'],
+    visitIds: ['ev2'],
+    status: 'active',
+    reviewed: false,
+    draftSource: EDITH_DRAFT_SOURCE,
+  },
+  {
+    id: 'eo6',
+    title: 'Return to Social Activities in the Community',
+    type: 'custom',
+    // Deliberately has no visit: nothing in her service agreement can deliver
+    // this yet, so the outcome card shows "None" under Visits. The gap is the
+    // point — visits originate in Rostering, so a new one has to be added
+    // there before this outcome can actually be delivered.
+    whatICanDo: 'Edith has missed the Tuesday knitting group at the church hall since her fall. She would like to go back once she feels steadier and has asked for someone to come with her the first few times. Arthritis in her hands slows her knitting but she still enjoys it.',
+    aims: 'Edith is back at her knitting group each week — accompanied at first, then under her own steam.',
+    taskIds: ['et10'],
+    visitIds: [],
+    status: 'active',
+    reviewed: false,
+    draftSource: EDITH_DRAFT_SOURCE,
+  },
+];
+
+export const EDITH_TASKS: CareTask[] = [
+  {
+    id: 'et5', title: 'Amlodipine', category: 'Medications',
+    description: 'Prompt me to take my amlodipine for my blood pressure. I do not always remember it. Please record what I have taken and report any refusals to the office.',
+    startDate: '13/07/2026', outcomeIds: ['eo4'], visitIds: ['ev1'], status: 'active',
+    medicationDetails: {
+      form: 'Tablet',
+      route: 'Oral',
+      dosage: '5mg once daily',
+      controlCategory: 'N/A',
+      location: 'Kitchen cupboard',
+      supportRequired: 'Prompt',
+      prn: false,
+    },
+    reviewed: false, draftSource: EDITH_DRAFT_SOURCE,
+  },
+  {
+    id: 'et6', title: 'Co-codamol', category: 'Medications',
+    description: 'Offer me co-codamol if I am in pain from my hip or my arthritis. Please ask how my pain is at each visit, record anything I take, and let the office know if I am needing it more often.',
+    startDate: '13/07/2026', outcomeIds: ['eo4'], visitIds: ['ev1', 'ev2'], status: 'active',
+    medicationDetails: {
+      form: 'Tablet',
+      route: 'Oral',
+      dosage: '30/500mg, up to twice daily',
+      controlCategory: 'N/A',
+      location: 'Kitchen cupboard',
+      supportRequired: 'Prompt',
+      prn: true,
+    },
+    reviewed: false, draftSource: EDITH_DRAFT_SOURCE,
+  },
+  {
+    id: 'et1', title: 'Personal Care Support', category: 'General',
+    description: 'Assist me to wash my legs and feet and to dress. I can manage my top half myself and would like to keep doing that. I would prefer a female carer for this.',
+    startDate: '13/07/2026', outcomeIds: ['eo2'], visitIds: ['ev1'], status: 'active',
+    reviewed: false, draftSource: EDITH_DRAFT_SOURCE,
+  },
+  {
+    id: 'et2', title: 'Prepare Breakfast', category: 'Nutrition',
+    description: 'Please make me a proper breakfast and encourage me to eat it. Note what I have eaten in the care record.',
+    startDate: '13/07/2026', outcomeIds: ['eo3'], visitIds: ['ev1'], status: 'active',
+    reviewed: false, draftSource: EDITH_DRAFT_SOURCE,
+  },
+  {
+    id: 'et3', title: 'Prepare Lunch', category: 'Nutrition',
+    description: 'Please make me some lunch and encourage me to eat it. I have been having biscuits and not much else, so do check what I have had.',
+    startDate: '13/07/2026', outcomeIds: ['eo3'], visitIds: ['ev2'], status: 'active',
+    reviewed: false, draftSource: EDITH_DRAFT_SOURCE,
+  },
+  {
+    id: 'et4', title: 'Encourage Fluids', category: 'Hydration',
+    description: 'Please offer me a drink and encourage me to finish it. I forget to drink, so leave a fresh drink within my reach before you go.',
+    startDate: '13/07/2026', outcomeIds: ['eo3'], visitIds: ['ev1', 'ev2'], status: 'active',
+    reviewed: false, draftSource: EDITH_DRAFT_SOURCE,
+  },
+  {
+    id: 'et7', title: 'Mobility & Falls Check', category: 'General',
+    description: 'Please supervise me moving around with my frame and check my walkways are clear. Do not let me try the two steps down to the back door on my own.',
+    startDate: '13/07/2026', outcomeIds: ['eo1'], visitIds: ['ev1', 'ev2'], status: 'active',
+    reviewed: false, draftSource: EDITH_DRAFT_SOURCE,
+  },
+  {
+    id: 'et9', title: 'Check I Have Eaten', category: 'Observations',
+    description: 'Please check for evidence I have eaten and ask me what I have had. I sometimes forget whether I have eaten. Record what you find in the care notes.',
+    startDate: '13/07/2026', outcomeIds: ['eo3', 'eo4'], visitIds: ['ev2'], status: 'active',
+    reviewed: false, draftSource: EDITH_DRAFT_SOURCE,
+  },
+  {
+    id: 'et8', title: 'Laundry & Bed Change', category: 'General',
+    description: 'Please see to my laundry and change my bed. I cannot carry things while I am using my frame.',
+    startDate: '13/07/2026', outcomeIds: ['eo5'], visitIds: ['ev2'], status: 'active',
+    reviewed: false, draftSource: EDITH_DRAFT_SOURCE,
+  },
+  {
+    id: 'et10', title: 'Accompany to Knitting Group', category: 'General',
+    // No visitIds — see the note on eo6.
+    description: 'I would like to get back to the Tuesday knitting group at the church hall. Please come with me the first few times, until I feel steadier on my own.',
+    startDate: '13/07/2026', outcomeIds: ['eo6'], visitIds: [], status: 'active',
+    reviewed: false, draftSource: EDITH_DRAFT_SOURCE,
   },
 ];
 
@@ -245,5 +438,5 @@ export interface CarePlanData {
 
 export const CARE_DATA: Record<string, CarePlanData> = {
   'arthur-barrington': { tasks: TASKS, outcomes: OUTCOMES, visits: VISITS },
-  'edith-caldwell': { tasks: [], outcomes: [], visits: EDITH_VISITS },
+  'edith-caldwell': { tasks: EDITH_TASKS, outcomes: EDITH_OUTCOMES, visits: EDITH_VISITS },
 };

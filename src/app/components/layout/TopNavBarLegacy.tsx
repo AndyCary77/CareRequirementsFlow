@@ -49,7 +49,7 @@ export function Header() {
             <NavItem icon={<FontAwesomeIcon icon={faTriangleExclamation} className="w-4 h-4" />} label="Alerts" to="/alerts" />
             <NavItem icon={<FontAwesomeIcon icon={faComment} className="w-4 h-4" />} label="Enquiries" to="/enquiries" />
             <NavItem icon={<FontAwesomeIcon icon={faHourglassHalf} className="w-4 h-4" />} label="Timeline" to="/timeline" />
-            <NavItem label="Admin" />
+            <NavItem label="Admin" to="/admin" active={location.pathname === '/admin'} />
           </div>
 
           <div className="h-4 w-px bg-purple-400"></div>

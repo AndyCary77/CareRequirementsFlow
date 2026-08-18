@@ -103,7 +103,7 @@ export function WiitmDocumentProvider({ children }: { children: React.ReactNode 
   const linkedRecordingId = searchParams.get('recording');
   const [linkedSource, setLinkedSource] = useState<LinkedSource>(linkedRecordingId ? { type: 'recording', id: linkedRecordingId } : null);
   const [fields, setFields] = useState<FormField[]>(linkedRecordingId ? WIITM_FIELDS_DRAFT : WIITM_FIELDS_BLANK);
-  const linkedRecording = linkedSource?.type === 'recording' ? resolveRecording(customer.id, linkedSource.id) : null;
+  const linkedRecording = (linkedSource?.type === 'recording' ? resolveRecording(customer.id, linkedSource.id) : null) ?? null;
   const otherRecordings = resolveRecordings(customer.id).filter(r => linkedSource?.type !== 'recording' || r.id !== linkedSource.id);
 
   // No CareBridgeContext here — this document isn't part of the Care Plan's

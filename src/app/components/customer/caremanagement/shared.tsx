@@ -1,4 +1,10 @@
-import { Eye, Check, Sparkles, X, Trash2 } from 'lucide-react';
+import { Fragment } from 'react';
+import { Eye, Check, CheckCircle2, Info, Loader2, Sparkles, X, Trash2 } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '../../ui/tooltip';
+import { Button } from '../../buttons/Button';
+import { useCareManagement, CARE_PLAN_DRAFT_STEPS } from './CareManagementContext';
+import { useCareData } from './useCareData';
+import { useCustomer } from '../../../data/CustomerContext';
 import { StarSolidIcon, CalendarSolidIcon, TickSolidIcon, PlusSolidIcon, NutritionSolidIcon, HydrateSolidIcon } from '../../icons/CarePlanIcons';
 import {
   AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
@@ -159,17 +165,66 @@ export function DraftActionBar({
 }
 
 /**
+ * Names where a draft came from, inline within a sentence — a plain bolded
+ * name when there's just one recording, or a single "N recordings" badge when
+ * there's more, hovering (or focusing) anywhere on the badge itself reveals
+ * each one. Keeps the sentence short regardless of how many recordings
+ * actually contributed, rather than spelling every one of them out inline
+ * (which stops being readable past two or three) or silently only naming
+ * the first.
+ */
+function DraftSourcesNote({ sources }: { sources: string[] }) {
+  if (sources.length === 0) return null;
+  if (sources.length === 1) return <strong>{sources[0]}</strong>;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          role="button"
+          tabIndex={0}
+          aria-label={`Show the ${sources.length} recordings this was drafted from`}
+          // CareBridge's own purple rather than colour-matched to whichever
+          // banner it sits in (also purple for the offer/running state, but
+          // deliberately purple even against the green success banner — a
+          // consistent CareBridge-branded tint rather than blending into
+          // either). Text stays the same size as the sentence around it —
+          // only the weight and the tint mark it as its own element.
+          // `leading-none` shrinks the pill's own line-height down to its
+          // font size, so the padding+border added back on top lands the
+          // whole box back at ~20px — the same as the text-sm line-height
+          // around it — and `align-middle` then centres it against the
+          // sentence's baseline correctly instead of floating above it (a
+          // taller box centred via vertical-align sits higher than the text).
+          // The whole badge is the tooltip trigger — not just the icon — so
+          // hovering the count itself is enough.
+          className="inline-flex items-center gap-1 align-middle leading-none rounded-full border border-purple-200 bg-purple-100 px-2 py-0.5 text-sm font-semibold text-purple-900 cursor-default outline-none hover:bg-purple-200 focus-visible:ring-2 focus-visible:ring-[rgb(154,38,214)]/50"
+        >
+          {sources.length} recordings
+          <Info className="w-3.5 h-3.5 text-[rgb(154,38,214)]" />
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="top">
+        <ul className="space-y-0.5">
+          {sources.map(source => <li key={source}>{source}</li>)}
+        </ul>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+/**
  * CareBridge draft banner, shown above the list on each care-plan tab while
  * anything on it is still pending review. Same role as the "CareBridge Draft"
  * banner on a document: says where the content came from and how much is left
  * to review, without implying it's already part of the live plan.
  */
 export function CarePlanDraftBanner({
-  pendingOutcomes, pendingTasks, source, activeTab,
+  pendingOutcomes, pendingTasks, sources, activeTab,
 }: {
   pendingOutcomes: number;
   pendingTasks: number;
-  source?: string;
+  sources?: string[];
   activeTab: 'outcomes' | 'tasks' | 'visits';
 }) {
   const total = pendingOutcomes + pendingTasks;
@@ -192,8 +247,8 @@ export function CarePlanDraftBanner({
             </span>
           </p>
           <p className="text-sm text-purple-800 mt-0.5">
-            {source
-              ? <>Drafted from <strong>{source}</strong> — nothing here is part of the live care plan until you accept it.</>
+            {sources && sources.length > 0
+              ? <>Drafted from <DraftSourcesNote sources={sources} /> — nothing here is part of the live care plan until you accept it.</>
               : <>Nothing here is part of the live care plan until you accept it.</>}
           </p>
           <p className="text-sm text-purple-800 mt-1.5">
@@ -205,6 +260,129 @@ export function CarePlanDraftBanner({
                 : ` — ${onThisTab} ${thisTabLabel}${onThisTab === 1 ? '' : 's'} on this tab.`}
           </p>
         </div>
+      </div>
+    </div>
+  );
+}
+
+
+/**
+ * The three states of drafting a care plan from a customer's CareBridge
+ * recordings, shown above whichever list the reviewer is on:
+ *
+ *   offer     — nothing drafted yet, so a plain "Draft care plan" CTA
+ *   running   — a stepper, with the outcomes and then the tasks appearing
+ *               beneath it as their step finishes
+ *   drafted   — a success message, dismissible, sitting above the usual
+ *               CarePlanDraftBanner (which carries the live "X to review"
+ *               counts, so the two say different things)
+ *
+ * The state lives in CareManagementContext, so it holds while the reviewer
+ * moves between Outcomes and Tasks and is gone on a reload.
+ *
+ * The stepper is deliberately the same shape as the one in
+ * WhatIsImportantToMeDocumentPage — same "CareBridge is working on this"
+ * moment, so it should read the same — but it drives content appearing on the
+ * page as it goes rather than just filling a wait, which is why it isn't
+ * simply shared with it.
+ */
+export function CarePlanDraftFlow() {
+  const customer = useCustomer();
+  const { availableDraft } = useCareData();
+  const { draftStep, draftComplete, startCarePlanDraft, draftNoticeDismissed, dismissDraftNotice } = useCareManagement();
+  const firstName = customer.fullName.split(' ').slice(1, -1).join(' ') || customer.fullName;
+
+  if (!availableDraft) return null;
+
+  if (draftStep !== null) {
+    return (
+      <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 shadow-sm">
+        <div className="flex items-center gap-2.5 mb-4">
+          <Sparkles className="w-4 h-4 text-[rgb(154,38,214)] flex-shrink-0" />
+          <p className="text-sm font-semibold text-purple-900">
+            Drafting the care plan from <DraftSourcesNote sources={availableDraft.sources} />…
+          </p>
+        </div>
+        <div className="flex items-start px-1">
+          {CARE_PLAN_DRAFT_STEPS.map((step, i) => {
+            const state = i < draftStep ? 'done' : i === draftStep ? 'active' : 'pending';
+            return (
+              <Fragment key={step.label}>
+                <div className="flex flex-col items-center gap-1.5 flex-shrink-0 w-28">
+                  <span
+                    className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-semibold ${
+                      state === 'done' ? 'bg-[rgb(33,166,33)] text-white' : state === 'active' ? 'bg-[rgb(154,38,214)] text-white' : 'bg-purple-100 text-purple-400'
+                    }`}
+                  >
+                    {/* Keyed by state so the tick plays a pop-in rather than silently swapping icons. */}
+                    <span key={state} className="flex items-center justify-center animate-in zoom-in-50 duration-300">
+                      {state === 'done' ? <Check className="w-3 h-3" /> : state === 'active' ? <Loader2 className="w-3 h-3 animate-spin" /> : i + 1}
+                    </span>
+                  </span>
+                  <span className={`text-sm text-center ${state === 'pending' ? 'text-purple-400' : 'text-purple-900 font-medium'}`}>
+                    {step.label}
+                  </span>
+                </div>
+                {i < CARE_PLAN_DRAFT_STEPS.length - 1 && (
+                  <div className="flex-1 h-0.5 bg-purple-100 rounded-full overflow-hidden mt-2.5 mx-1">
+                    <div
+                      className="h-full bg-[rgb(154,38,214)] transition-all ease-out duration-300"
+                      style={{ width: i < draftStep ? '100%' : '0%' }}
+                    />
+                  </div>
+                )}
+              </Fragment>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  if (draftComplete) {
+    if (draftNoticeDismissed) return null;
+    return (
+      <div className="flex items-start gap-3 rounded-lg border border-[rgb(178,224,178)] bg-[rgb(232,247,232)] px-4 py-3">
+        <div className="w-7 h-7 rounded-lg bg-[rgb(212,240,212)] flex items-center justify-center flex-shrink-0">
+          <CheckCircle2 className="w-4 h-4 text-[rgb(33,166,33)]" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-base font-semibold text-[rgb(12,77,12)]">Care plan drafted</p>
+          <p className="text-sm text-[rgb(16,100,16)] mt-0.5">
+            {availableDraft.outcomes} outcomes and {availableDraft.tasks} tasks drafted from{' '}
+            <DraftSourcesNote sources={availableDraft.sources} />, each linked to the visits they belong to. Review
+            and accept them one by one — nothing is part of the live plan until you do.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={dismissDraftNotice}
+          aria-label="Dismiss"
+          className="text-[rgb(16,100,16)] hover:text-[rgb(12,77,12)] transition-colors cursor-pointer flex-shrink-0"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-purple-200 shadow-sm overflow-hidden">
+      <div className="flex items-start gap-3 bg-white px-4 py-3">
+        <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
+          <Sparkles className="w-4 h-4 text-[rgb(154,38,214)]" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-base font-semibold text-purple-900">Draft this care plan from CareBridge</p>
+          <p className="text-sm text-purple-800 mt-0.5">
+            {firstName}'s assessment{availableDraft.sources.length > 1 ? 's were' : ' was'} recorded with CareBridge.
+            Draft the outcomes and tasks from <DraftSourcesNote sources={availableDraft.sources} /> and they'll come
+            in here as drafts for you to review, edit and accept — or build the plan by hand instead.
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-3 bg-purple-50 border-t border-purple-200 px-4 py-3">
+        <Button icon={<Sparkles className="w-4 h-4" />} onClick={startCarePlanDraft}>Draft care plan</Button>
       </div>
     </div>
   );

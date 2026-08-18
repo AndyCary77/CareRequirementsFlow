@@ -5,7 +5,7 @@ import { Button } from '../../buttons/Button';
 import { useCareManagement } from './CareManagementContext';
 import { useCareData } from './useCareData';
 import { type CareTask } from './types';
-import { OutcomeBadge, VisitBadge, ActiveBadge, StatusToggle, EmptyTab, inputClass, labelClass, CATEGORY_CONFIG, DraftActionBar, CarePlanDraftBanner } from './shared';
+import { OutcomeBadge, VisitBadge, ActiveBadge, StatusToggle, EmptyTab, inputClass, labelClass, CATEGORY_CONFIG, DraftActionBar, CarePlanDraftBanner, CarePlanDraftFlow } from './shared';
 
 /**
  * Medication summary chips. `prn` is a boolean rather than a string, so it
@@ -107,7 +107,7 @@ function TaskCard({ task, onSelect }: { task: CareTask; onSelect: () => void }) 
 }
 
 function TaskEditForm({ task, onDiscarded }: { task: CareTask; onDiscarded: () => void }) {
-  const { OUTCOMES, VISITS, pending, draftSource } = useCareData();
+  const { OUTCOMES, VISITS, pending, draftSources } = useCareData();
   const { accept, discard, setDirty } = useCareManagement();
   const { Icon, bg, text, border } = CATEGORY_CONFIG[task.category];
   const med = task.medicationDetails;
@@ -124,7 +124,7 @@ function TaskEditForm({ task, onDiscarded }: { task: CareTask; onDiscarded: () =
       <CarePlanDraftBanner
         pendingOutcomes={pending.outcomes}
         pendingTasks={pending.tasks}
-        source={draftSource}
+        sources={draftSources}
         activeTab="tasks"
       />
 
@@ -394,10 +394,11 @@ function blankTask(): CareTask {
 }
 
 export function TasksTab() {
-  const { TASKS, pending, draftSource } = useCareData();
+  const { TASKS, pending, draftSources } = useCareData();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = selectedId === NEW_TASK_ID ? blankTask() : selectedId ? TASKS.find(t => t.id === selectedId) : null;
-  const { registerBack, clearBack, registerAdd, clearAdd, registerDelete, clearDelete, discard } = useCareManagement();
+  const { registerBack, clearBack, registerAdd, clearAdd, registerDelete, clearDelete, discard, draftStep } = useCareManagement();
+  const drafting = draftStep !== null;
 
   // "Add Task" lives in the subnav's actions row, not here — only the list
   // view offers it, same scoping as the back button being detail-only.
@@ -424,14 +425,18 @@ export function TasksTab() {
 
   return (
     <div className="space-y-4">
+      {/* Same offer/progress/success panel as the Outcomes tab — the run
+          carries on across a tab switch, so it has to be visible from both. */}
+      <CarePlanDraftFlow />
+
       {TASKS.length === 0 ? (
-        <EmptyTab label="tasks" />
+        drafting ? null : <EmptyTab label="tasks" />
       ) : (
         <>
           <CarePlanDraftBanner
             pendingOutcomes={pending.outcomes}
             pendingTasks={pending.tasks}
-            source={draftSource}
+            sources={draftSources}
             activeTab="tasks"
           />
           {TASKS.map(task => (

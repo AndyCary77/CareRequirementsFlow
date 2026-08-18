@@ -134,6 +134,7 @@ const NAV_LINKS = {
   employees: '/employees',
   schedule: '/schedule',
   office: '/office/tags',
+  admin: '/admin',
 }
 
 // Broader path prefix used only for active-item highlighting
@@ -142,6 +143,7 @@ const NAV_ACTIVE_PATHS = {
   employees: '/employees',
   schedule: '/schedule',
   office: '/office',
+  admin: '/admin',
 }
 
 export default function SideNav({

@@ -1,9 +1,22 @@
 import { useMemo } from 'react';
 import { useCustomer } from '../../../data/CustomerContext';
-import { CARE_DATA } from './types';
+import { CARE_DATA, CARE_PLAN_DRAFTS } from './types';
 import { useCareManagement } from './CareManagementContext';
 
 const EMPTY = { tasks: [], outcomes: [], visits: [] };
+
+/** Distinct `draftSource` values across a set of records, in first-seen order. */
+function dedupeSources(items: { draftSource?: string }[]): string[] {
+  const seen = new Set<string>();
+  const sources: string[] = [];
+  for (const item of items) {
+    if (item.draftSource && !seen.has(item.draftSource)) {
+      seen.add(item.draftSource);
+      sources.push(item.draftSource);
+    }
+  }
+  return sources;
+}
 
 /**
  * Returns the current customer's care-plan data. Names are uppercased to match
@@ -18,8 +31,12 @@ const EMPTY = { tasks: [], outcomes: [], visits: [] };
  */
 export function useCareData() {
   const customer = useCustomer();
-  const { acceptedIds, discardedIds } = useCareManagement();
+  const { acceptedIds, discardedIds, draftedOutcomesVisible, draftedTasksVisible } = useCareManagement();
   const data = CARE_DATA[customer.id] ?? EMPTY;
+  // What CareBridge would draft from this customer's recordings, if anything.
+  // It only joins the lists as the "Draft care plan" run reveals it, step by
+  // step — before that the plan is genuinely empty.
+  const draft = CARE_PLAN_DRAFTS[customer.id];
 
   return useMemo(() => {
     const applyAccepted = <T extends { id: string; reviewed?: boolean }>(items: T[]): T[] =>
@@ -30,8 +47,14 @@ export function useCareData() {
     const notDiscarded = <T extends { id: string }>(items: T[]): T[] =>
       discardedIds.size === 0 ? items : items.filter(item => !discardedIds.has(item.id));
 
-    const outcomes = notDiscarded(applyAccepted(data.outcomes));
-    const tasks = notDiscarded(applyAccepted(data.tasks));
+    const outcomes = notDiscarded(applyAccepted([
+      ...data.outcomes,
+      ...(draft && draftedOutcomesVisible ? draft.outcomes : []),
+    ]));
+    const tasks = notDiscarded(applyAccepted([
+      ...data.tasks,
+      ...(draft && draftedTasksVisible ? draft.tasks : []),
+    ]));
     return {
       TASKS: tasks,
       OUTCOMES: outcomes,
@@ -41,8 +64,23 @@ export function useCareData() {
         outcomes: outcomes.filter(o => o.reviewed === false).length,
         tasks: tasks.filter(t => t.reviewed === false).length,
       },
-      /** The recording these drafts came from, if any are present. */
-      draftSource: [...outcomes, ...tasks].find(i => i.draftSource)?.draftSource,
+      /**
+       * The recording(s) these drafts came from, if any are present —
+       * deduped, in first-seen order. A plan can be built up from more than
+       * one recording (an initial assessment plus a later review, say), each
+       * tagging the records it drafted with its own `draftSource`, so this is
+       * a list rather than a single string.
+       */
+      draftSources: dedupeSources([...outcomes, ...tasks]),
+      /**
+       * A care plan CareBridge could draft from this customer's recordings
+       * that nobody has drafted yet — drives the "Draft care plan" offer on
+       * the Outcomes/Tasks tabs. Null once the plan has content of its own.
+       */
+      availableDraft:
+        draft && data.outcomes.length === 0 && data.tasks.length === 0
+          ? { sources: dedupeSources([...draft.outcomes, ...draft.tasks]), outcomes: draft.outcomes.length, tasks: draft.tasks.length }
+          : null,
     };
-  }, [data, acceptedIds, discardedIds]);
+  }, [data, draft, draftedOutcomesVisible, draftedTasksVisible, acceptedIds, discardedIds]);
 }

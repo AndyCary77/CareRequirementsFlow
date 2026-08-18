@@ -1,6 +1,21 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 type Tab = 'outcomes' | 'tasks' | 'visits' | 'caregroups';
+
+/**
+ * The simulated "draft the care plan from the recordings" run. Outcomes are
+ * revealed as soon as their own step finishes rather than everything landing
+ * at the end — the plan visibly builds itself in the order it's described, so
+ * the wait reads as work happening on the page you're already looking at.
+ */
+export const CARE_PLAN_DRAFT_STEPS = [
+  { label: 'Reading the recording', ms: 1300 },
+  { label: 'Drafting outcomes', ms: 2000 },
+  { label: 'Drafting tasks', ms: 2000 },
+];
+// Brief hold with every step ticked, so the finished stepper is actually seen
+// before it gives way to the success message.
+const DRAFT_COMPLETE_PAUSE_MS = 700;
 
 interface CareManagementContextType {
   activeTab: Tab;
@@ -53,6 +68,24 @@ interface CareManagementContextType {
    */
   dirty: boolean;
   setDirty: (dirty: boolean) => void;
+  /**
+   * Progress through CARE_PLAN_DRAFT_STEPS: null while idle, otherwise the
+   * index of the step currently running (STEPS.length = all done, held
+   * briefly before the success message takes over). Deliberately React state
+   * and nothing more — it survives switching between Outcomes and Tasks
+   * (the provider stays mounted; only activeTab changes) and is gone on
+   * reload, which is what a demo of a one-off generation wants.
+   */
+  draftStep: number | null;
+  /** True once the run has finished — drives the success message. */
+  draftComplete: boolean;
+  startCarePlanDraft: () => void;
+  /** Whether the drafted outcomes/tasks have been revealed yet, mid-run. */
+  draftedOutcomesVisible: boolean;
+  draftedTasksVisible: boolean;
+  /** The success message is dismissible; staying dismissed is also per-session. */
+  draftNoticeDismissed: boolean;
+  dismissDraftNotice: () => void;
 }
 
 const CareManagementContext = createContext<CareManagementContextType>({
@@ -73,6 +106,13 @@ const CareManagementContext = createContext<CareManagementContextType>({
   discard: () => {},
   dirty: false,
   setDirty: () => {},
+  draftStep: null,
+  draftComplete: false,
+  startCarePlanDraft: () => {},
+  draftedOutcomesVisible: false,
+  draftedTasksVisible: false,
+  draftNoticeDismissed: false,
+  dismissDraftNotice: () => {},
 });
 
 export function CareManagementProvider({ children }: { children: React.ReactNode }) {
@@ -83,6 +123,42 @@ export function CareManagementProvider({ children }: { children: React.ReactNode
   const [acceptedIds, setAcceptedIds] = useState<Set<string>>(new Set());
   const [discardedIds, setDiscardedIds] = useState<Set<string>>(new Set());
   const [dirty, setDirty] = useState(false);
+  const [draftStep, setDraftStep] = useState<number | null>(null);
+  const [draftComplete, setDraftComplete] = useState(false);
+  const [draftNoticeDismissed, setDraftNoticeDismissed] = useState(false);
+
+  const startCarePlanDraft = useCallback(() => {
+    setDraftComplete(false);
+    setDraftNoticeDismissed(false);
+    setDraftStep(0);
+  }, []);
+  const dismissDraftNotice = useCallback(() => setDraftNoticeDismissed(true), []);
+
+  useEffect(() => {
+    if (draftStep === null) return;
+    const isFinalHold = draftStep === CARE_PLAN_DRAFT_STEPS.length;
+    const delay = isFinalHold ? DRAFT_COMPLETE_PAUSE_MS : CARE_PLAN_DRAFT_STEPS[draftStep].ms;
+    const timer = window.setTimeout(() => {
+      if (isFinalHold) {
+        setDraftStep(null);
+        setDraftComplete(true);
+        // Deliberately doesn't dirty the plan — the drafted records just
+        // arrived as pending review, same starting state as Edith's plan
+        // (which ships with 16 pending records and Save still disabled).
+        // Nothing here is a decision yet, so there's nothing to Save until
+        // the reviewer actually accepts, discards, or edits something.
+      } else {
+        setDraftStep(step => (step ?? 0) + 1);
+      }
+    }, delay);
+    return () => window.clearTimeout(timer);
+  }, [draftStep]);
+
+  // Step 1 ("Drafting outcomes") having finished means the run has moved on to
+  // index 2, so that's the point the outcomes appear; likewise the tasks once
+  // the last step is done.
+  const draftedOutcomesVisible = draftComplete || (draftStep !== null && draftStep >= 2);
+  const draftedTasksVisible = draftComplete || (draftStep !== null && draftStep >= 3);
 
   const registerBack = useCallback((fn: () => void) => setBackFn({ fn }), []);
   const clearBack = useCallback(() => setBackFn(null), []);
@@ -103,10 +179,14 @@ export function CareManagementProvider({ children }: { children: React.ReactNode
     () => ({
       activeTab, setActiveTab, backFn, registerBack, clearBack, addFn, registerAdd, clearAdd,
       deleteFn, registerDelete, clearDelete, acceptedIds, accept, discardedIds, discard, dirty, setDirty,
+      draftStep, draftComplete, startCarePlanDraft, draftedOutcomesVisible, draftedTasksVisible,
+      draftNoticeDismissed, dismissDraftNotice,
     }),
     [
       activeTab, backFn, registerBack, clearBack, addFn, registerAdd, clearAdd,
       deleteFn, registerDelete, clearDelete, acceptedIds, accept, discardedIds, discard, dirty,
+      draftStep, draftComplete, startCarePlanDraft, draftedOutcomesVisible, draftedTasksVisible,
+      draftNoticeDismissed, dismissDraftNotice,
     ],
   );
 

@@ -2,7 +2,6 @@ import { Printer, Calendar } from 'lucide-react';
 import { Button } from '../buttons/Button';
 import { useScrolled } from '../../hooks/useScrolled';
 import { useCustomer } from '../../data/CustomerContext';
-import { TabEmptyState } from './TabEmptyState';
 
 const labelClass = 'block text-sm font-medium text-gray-700 mb-1.5';
 const inputClass =
@@ -53,15 +52,45 @@ const ABOUT_ME: Record<string, AboutMeRecord> = {
   },
 };
 
+// Shown for a customer nothing has been recorded for yet (e.g. Vera) — the
+// real form, blank, rather than a generic "nothing here" placeholder card.
+// About Me is meant to be filled in during onboarding, so the form itself —
+// ready to type straight into — is the better starting point than a message
+// saying there's nothing to look at.
+const EMPTY_ABOUT_ME: AboutMeRecord = {
+  updatedDate: '',
+  updatedBy: '',
+  supportedBy: '',
+  fields: [
+    { id: 'importantToMe', label: 'What is most important to me', rows: 3, value: '' },
+    { id: 'importantPeople', label: 'People who are important to me', rows: 3, value: '' },
+    { id: 'communication', label: 'How I communicate and how to communicate with me', rows: 3, value: '' },
+    { id: 'wellness', label: 'My wellness', rows: 4, value: '' },
+    { id: 'doAndDont', label: "Please do and please don't", rows: 3, value: '' },
+    { id: 'howToSupportMe', label: 'How and when to support me', rows: 4, value: '' },
+    { id: 'alsoWorthKnowing', label: 'Also worth knowing about me', rows: 5, value: '' },
+  ],
+};
+
+function getAboutMe(customerId: string): AboutMeRecord {
+  return ABOUT_ME[customerId] ?? EMPTY_ABOUT_ME;
+}
+
 export function AboutMeSubnav() {
   const scrolled = useScrolled();
   const customer = useCustomer();
-  const record = ABOUT_ME[customer.id];
-  if (!record) return null;
+  const record = getAboutMe(customer.id);
   return (
     <div className="bg-gray-50 border-b border-gray-200">
-      <div className={`max-w-[1600px] w-full mx-auto px-6 flex items-center justify-between gap-4 transition-all duration-300 ${scrolled ? 'py-2' : 'py-3.5'}`}>
-        <span className="text-xs text-gray-500">Last updated: {record.updatedDate} &nbsp;·&nbsp; {record.updatedBy}</span>
+      {/* Same max-w-5xl w-full mx-auto (no extra px) as CareManagementSubnav —
+          not a coincidence of matching numbers: this bar sits outside <main>
+          (no px-6 of its own), so centring at the same width as <main>'s own
+          content column beneath it lines the two up exactly, at any viewport
+          width, without needing to replicate main's padding here too. */}
+      <div className={`max-w-5xl w-full mx-auto flex items-center justify-between gap-4 transition-all duration-300 ${scrolled ? 'py-2' : 'py-3.5'}`}>
+        <span className="text-xs text-gray-500">
+          {record.updatedDate ? <>Last updated: {record.updatedDate} &nbsp;·&nbsp; {record.updatedBy}</> : 'Not yet completed'}
+        </span>
         <div className="flex items-center gap-3">
           <Button variant="tertiary" icon={<Printer className="w-4 h-4" />}>Print</Button>
           <Button>Save</Button>
@@ -73,16 +102,17 @@ export function AboutMeSubnav() {
 
 export function AboutMePage() {
   const customer = useCustomer();
-  const record = ABOUT_ME[customer.id];
-
-  if (!record) {
-    return <TabEmptyState label="About Me information" />;
-  }
+  const record = getAboutMe(customer.id);
 
   return (
-    <div>
-      {/* Form card */}
-      <div className="bg-white rounded-[10px] border border-gray-200 p-6 max-w-[900px] space-y-5">
+    // Same max-w-5xl mx-auto as CareManagementPage's own content wrapper —
+    // centred and the same width as the subnav bar above it, rather than the
+    // card sitting left-aligned at its own arbitrary width.
+    <div className="max-w-5xl mx-auto">
+      {/* Form card — rendered blank (see EMPTY_ABOUT_ME) rather than swapped
+          out for a placeholder when nothing's been recorded yet, so the form
+          itself is what a reviewer sees before any detail exists. */}
+      <div className="bg-white rounded-[10px] border border-gray-200 p-6 space-y-5">
         <h2 className="text-base font-semibold text-gray-900">About me</h2>
 
         {record.fields.map(field => (
@@ -91,6 +121,7 @@ export function AboutMePage() {
             <textarea
               id={field.id}
               defaultValue={field.value}
+              placeholder="Not yet recorded"
               rows={field.rows}
               className={`${inputClass} resize-none`}
             />
@@ -104,7 +135,8 @@ export function AboutMePage() {
             <div className="relative">
               <input
                 type="text"
-                defaultValue={`${record.updatedDate} 00:00`}
+                defaultValue={record.updatedDate ? `${record.updatedDate} 00:00` : ''}
+                placeholder="Not yet recorded"
                 className={`${inputClass} pr-10`}
               />
               <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
@@ -112,7 +144,7 @@ export function AboutMePage() {
           </div>
           <div>
             <label className={labelClass}>Supported by</label>
-            <input type="text" defaultValue={record.supportedBy} className={inputClass} />
+            <input type="text" defaultValue={record.supportedBy} placeholder="Not yet recorded" className={inputClass} />
           </div>
         </div>
       </div>

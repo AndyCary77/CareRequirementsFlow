@@ -23,6 +23,7 @@ import { LandingPage } from './components/LandingPage';
 import { CustomersListPage } from './components/customer/CustomersListPage';
 import { AboutMePage, AboutMeSubnav } from './components/customer/AboutMePage';
 import { CareBridgePage, CareBridgeProvider, CareBridgeSubnav } from './components/customer/CareBridgePage';
+import { AdminSettingsPage } from './components/admin/AdminSettingsPage';
 import { TagsManagementPage } from './components/office/TagsManagementPage';
 import { TagTypeDetailPage } from './components/office/TagTypeDetailPage';
 import { OfficeProvider } from './components/office/OfficeContext';
@@ -304,6 +305,10 @@ export const router = createBrowserRouter([
   {
     path: "/customers/list",
     Component: () => <AppShell><CustomersListPage /></AppShell>,
+  },
+  {
+    path: "/admin",
+    Component: () => <AppShell><AdminSettingsPage /></AppShell>,
   },
   {
     path: "/customers/:customerId",

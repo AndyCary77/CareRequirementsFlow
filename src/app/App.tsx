@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { RouterProvider } from 'react-router';
 import { router } from './routes';
 import { NavModeProvider } from './components/layout/NavModeContext';
+import { FeatureFlagsProvider } from './data/FeatureFlagsContext';
 
 export default function App() {
   useEffect(() => {
@@ -10,8 +11,10 @@ export default function App() {
   }, []);
 
   return (
-    <NavModeProvider>
-      <RouterProvider router={router} />
-    </NavModeProvider>
+    <FeatureFlagsProvider>
+      <NavModeProvider>
+        <RouterProvider router={router} />
+      </NavModeProvider>
+    </FeatureFlagsProvider>
   );
 }

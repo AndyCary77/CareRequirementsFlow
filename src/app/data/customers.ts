@@ -70,6 +70,27 @@ export const CUSTOMERS: Record<string, CustomerProfile> = {
     hasCarePlan: false,
     landingTab: 'caremanagement',
   },
+  // Same shape of enquiry as Edith — assessed, no live care plan yet — but
+  // her assessment was done on paper rather than recorded, so CareBridge has
+  // nothing to draft from. Drives the empty CareBridge states and the
+  // "draft the care plan manually" route out of them.
+  'vera-bramwell': {
+    id: 'vera-bramwell',
+    fullName: 'Mrs Vera Bramwell',
+    initials: 'VB',
+    initialsColor: 'bg-rose-100 text-rose-700',
+    status: 'assessment-completed',
+    statusLabel: 'ASSESSMENT COMPLETED',
+    dob: '19/11/1939',
+    tel: '01827 318 462',
+    mob: '07845 220 918 (Paul, son)',
+    addressLines: ['22 Ashcroft Gardens'],
+    suburb: 'Tamworth',
+    postcode: 'B79 8QN',
+    addressOneLine: '22 Ashcroft Gardens, Tamworth, B79 8QN',
+    hasCarePlan: false,
+    landingTab: 'carebridge',
+  },
 };
 
 export const DEFAULT_CUSTOMER = CUSTOMERS['arthur-barrington'];
@@ -81,4 +102,5 @@ export function getCustomer(id?: string): CustomerProfile {
 export const CUSTOMER_LIST: CustomerProfile[] = [
   CUSTOMERS['arthur-barrington'],
   CUSTOMERS['edith-caldwell'],
+  CUSTOMERS['vera-bramwell'],
 ];

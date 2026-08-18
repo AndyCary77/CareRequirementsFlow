@@ -67,8 +67,13 @@ export function CarePlanDocumentProvider({ children }: { children: React.ReactNo
   const passgeniusRef = useRef<HTMLObjectElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [linkedSource, setLinkedSource] = useState<LinkedSource>({ type: 'recording', id: 'initial' });
-  const linkedRecording = linkedSource?.type === 'recording' ? resolveRecording(customer.id, linkedSource.id) : null;
+  // Starts linked to the assessment recording, where there is one — a
+  // customer CareBridge never recorded (e.g. Vera Bramwell) starts unlinked
+  // instead, so the panel offers "Link a recording" rather than claiming a
+  // draft that doesn't exist.
+  const hasRecordings = resolveRecordings(customer.id).length > 0;
+  const [linkedSource, setLinkedSource] = useState<LinkedSource>(hasRecordings ? { type: 'recording', id: 'initial' } : null);
+  const linkedRecording = (linkedSource?.type === 'recording' ? resolveRecording(customer.id, linkedSource.id) : null) ?? null;
   const otherRecordings = resolveRecordings(customer.id).filter(r => linkedSource?.type !== 'recording' || r.id !== linkedSource.id);
 
   // Publish is gated on review, same as the real CareBridge subnav's CTA —

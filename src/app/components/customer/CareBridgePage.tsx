@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router';
-import { FileText, Target, ListChecks, Sparkles, Send, Mic, ArrowRight, Info, Pencil, ThumbsUp, ThumbsDown, Copy, ChevronDown, Play, Pause, Download, X, Check, Search } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router';
+import { FileText, Target, ListChecks, Sparkles, Send, Mic, Upload, ArrowRight, Info, Pencil, ThumbsUp, ThumbsDown, Copy, ChevronDown, Play, Pause, Download, X, Check, Search } from 'lucide-react';
 import { Button } from '../buttons/Button';
 import {
   DropdownMenu,
@@ -14,6 +14,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { useScrolled } from '../../hooks/useScrolled';
 import { useCustomer } from '../../data/CustomerContext';
+import { veraise } from '../../data/vera-from-edith';
 import type { CustomerProfile } from '../../data/customers';
 import { OutcomeBadge, TaskBadge } from './caremanagement/shared';
 import type { TaskCategory } from './caremanagement/types';
@@ -980,6 +981,37 @@ export interface Recording {
   isNew?: boolean;
 }
 
+// ─── Vera Bramwell — 4-week review: a separate, later recording ─────────────
+// Unlike her WIITM follow-up (excluded as a source — see the note on
+// RECORDINGS['vera-bramwell'] below), this one genuinely refines the plan:
+// her GP started ramipril at the initial assessment, and by the 4-week
+// review wants a dizziness-on-standing check added, given her existing
+// falls risk. Same "review adds one task" shape as Arthur's 6-week review.
+const VERA_REVIEW_TRANSCRIPT: TranscriptLine[] = [
+  { speaker: 'Bernadette (Assessor)', role: 'assessor', time: '09:15', text: "Just for the recording, could you both confirm your names for me quickly?" },
+  { speaker: 'Vera', role: 'customer', time: '09:15', text: "Vera." },
+  { speaker: 'Paul (Son)', role: 'family', time: '09:15', text: "Paul, her son." },
+  { speaker: 'Bernadette (Assessor)', role: 'assessor', time: '09:16', text: "Morning Vera, morning Paul — it's been four weeks now, so this visit is to check the care plan still reflects what you both want before we confirm it." },
+  { speaker: 'Vera', role: 'customer', time: '09:17', text: "The carers have settled in well, I think. I'm managing." },
+  { speaker: 'Paul (Son)', role: 'family', time: '09:18', text: "Could we add one thing — her GP wants the carers to check she isn't dizzy getting up now she's on the ramipril. It can drop your blood pressure when you stand." },
+  { speaker: 'Bernadette (Assessor)', role: 'assessor', time: '09:19', text: "Of course — given her falls risk that's a sensible addition. I'll add it as an agreed task. Anything else you'd like changed?" },
+  { speaker: 'Vera', role: 'customer', time: '09:20', text: "No, I'm happy with how it's going." },
+  { speaker: 'Bernadette (Assessor)', role: 'assessor', time: '09:36', text: "Good — I'll take that as your confirmation the plan reflects what you want, with that one addition." },
+];
+
+const VERA_REVIEW_SECTIONS: AssessmentSection[] = [
+  { id: 'plan-accuracy', title: 'Care plan accuracy', target: 'Plan review', text: "Vera and her son Paul confirmed the current care plan accurately reflects the support being provided and remains appropriate four weeks on." },
+  { id: 'agreed-changes', title: 'Agreed visits & tasks', target: 'Agreed changes', text: "One addition agreed: carers to check for dizziness on standing, following her GP starting ramipril for blood pressure and given her existing falls risk." },
+  { id: 'consent-to-plan', title: 'Consent to plan', target: 'Consent', text: "Vera gave her consent that the care plan, with the postural dizziness check addition, reflects what she wants and can be formally confirmed." },
+];
+
+const VERA_REVIEW_TASK_SUGGESTION: TaskSuggestion = {
+  id: 't-dizzy',
+  title: 'Postural Dizziness Check',
+  category: 'Observations',
+  text: "Check Vera isn't dizzy or unsteady when she stands up, since starting ramipril for her blood pressure — report any dizziness to the office given her falls risk.",
+};
+
 const RECORDINGS: Record<string, Recording[]> = {
   'arthur-barrington': [
     {
@@ -1059,13 +1091,80 @@ const RECORDINGS: Record<string, Recording[]> = {
       isNew: true,
     },
   ],
+  // Edith's two recordings re-skinned for Vera (see data/vera-from-edith.ts),
+  // plus a third that's genuinely hers: a 4-week review (below), same pattern
+  // as Arthur's 6-week review — a later, separate recording that refines the
+  // plan with one new task rather than redrafting the whole thing. The
+  // difference that matters is downstream, not here: nothing has been
+  // drafted into her care plan from either recording yet, so Care Management
+  // offers to draft it (see CARE_PLAN_DRAFTS in caremanagement/types.ts),
+  // and the drafted task/outcome records that come from this review are
+  // attributed to it via their own `draftSource`, distinct from the initial
+  // assessment's — so a plan can genuinely be drafted from more than one
+  // recording, not just Edith's single one re-skinned.
+  'vera-bramwell': [
+    {
+      id: 'initial',
+      label: 'Initial Assessment',
+      recordingMeta: '4 Aug 2026 · 13:59–15:01 · 62 min',
+      recordedBy: 'Bernadette Shaw',
+      transcript: veraise([...EDITH_TRANSCRIPT, ...EDITH_CONSENT_TRANSCRIPT, ...EDITH_RECEIPT_TRANSCRIPT, ...EDITH_PRIVACY_TRANSCRIPT, ...EDITH_TERMS_TRANSCRIPT, ...EDITH_GUIDE_TRANSCRIPT]),
+      focusDocumentName: 'Customer Care and Support Plan',
+      isCarePlanFocus: true,
+      focusSections: veraise(EDITH_SECTIONS),
+      focusOutcomes: veraise(EDITH_OUTCOMES),
+      focusTasks: veraise(EDITH_TASKS),
+      formSections: { 'personal-details': veraise(EDITH_PERSONAL_DETAILS) },
+      secondary: [
+        { id: 'consent-care', name: 'Consent to Care', sections: veraise(EDITH_CONSENT_SECTIONS) },
+        { id: 'confirm-receipt', name: 'Confirmation of Receipt', sections: veraise(EDITH_RECEIPT_SECTIONS) },
+        { id: 'privacy', name: 'Privacy Policy', sections: veraise(EDITH_PRIVACY_SECTIONS) },
+        { id: 'terms', name: 'Terms and Conditions of Business', sections: veraise(EDITH_TERMS_SECTIONS) },
+        { id: 'customer-guide', name: 'Customer Guide – Tamworth & Lichfield', sections: veraise(EDITH_GUIDE_SECTIONS) },
+      ],
+      chat: EDITH_CHAT,
+      edits: { focus: 2 },
+      isNew: true,
+    },
+    {
+      id: 'wiitm-followup',
+      label: 'What Is Important To Me — Follow-up',
+      recordingMeta: '11 Aug 2026 · 10:15–10:45 · 30 min',
+      recordedBy: 'Bernadette Shaw',
+      transcript: veraise(EDITH_WIITM_TRANSCRIPT),
+      focusDocumentName: 'What Is Important To Me',
+      isCarePlanFocus: false,
+      focusDocumentPath: 'documents/wiitm',
+      focusSections: [],
+      secondary: [],
+      chat: [],
+      edits: { focus: 0 },
+      isNew: true,
+    },
+    {
+      id: 'review4',
+      label: '4-Week Review',
+      recordingMeta: '1 Sep 2026 · 09:15–09:38 · 23 min',
+      recordedBy: 'Bernadette Shaw',
+      transcript: VERA_REVIEW_TRANSCRIPT,
+      focusDocumentName: 'Confirmation of Instructions',
+      isCarePlanFocus: false,
+      focusSections: VERA_REVIEW_SECTIONS,
+      carePlanTaskAdditions: [VERA_REVIEW_TASK_SUGGESTION],
+      secondary: [],
+      chat: [{ from: 'ai', text: 'Confirmation of Instructions drafted — plan confirmed accurate, and a new postural dizziness check task added to the care plan. Consent to the plan captured.' }],
+      edits: { focus: 1 },
+      isNew: true,
+    },
+  ],
 };
 
 export function resolveRecordings(customerId: string): Recording[] {
   return RECORDINGS[customerId] ?? RECORDINGS['arthur-barrington'];
 }
 
-export function resolveRecording(customerId: string, recordingId: string): Recording {
+/** Undefined when the customer has no recordings at all — callers show their own empty state rather than a draft. */
+export function resolveRecording(customerId: string, recordingId: string): Recording | undefined {
   const recordings = resolveRecordings(customerId);
   return recordings.find(r => r.id === recordingId) ?? recordings[0];
 }
@@ -1790,6 +1889,10 @@ function CarePlanMultiDocView({ recording }: { recording: Recording }) {
 export function CarePlanDocumentView() {
   const customer = useCustomer();
   const recording = resolveRecording(customer.id, 'initial');
+  // Nothing recorded for this customer, so there's no drafted plan to render
+  // here — the CareBridge tab is where the empty state (and the manual route
+  // out of it) lives.
+  if (!recording) return <NoCareBridgeContent context="careplan" />;
   return <CarePlanMultiDocView recording={recording} />;
 }
 
@@ -1902,6 +2005,96 @@ function CarePlanView({ carePlan, hasCarePlan }: { carePlan: ReturnType<typeof b
           ))}
         </div>
       </AccordionSection>
+    </div>
+  );
+}
+
+// ─── Empty state — a customer CareBridge has never recorded ───────────────────
+
+/**
+ * What CareBridge shows for a customer with no recordings at all (e.g. Vera
+ * Bramwell, assessed on paper before CareBridge was in use). The Draft Care
+ * Plan tab is deliberately more than a blank page: the banner names both ways
+ * forward — record the assessment and let CareBridge draft the plan, or skip
+ * CareBridge entirely and write the plan up by hand in Care Management — so
+ * an empty CareBridge never reads as a dead end.
+ */
+function NoCareBridgeContent({ context }: { context: 'careplan' | 'recording' }) {
+  const customer = useCustomer();
+  const navigate = useNavigate();
+  const firstName = customer.fullName.split(' ').slice(1, -1).join(' ') || customer.fullName;
+
+  return (
+    // Capped and centred rather than run full-bleed like the drafted views —
+    // there's no form here to fill the width, and the message reads badly as
+    // a single line stretched across a wide screen.
+    <div className="space-y-6 max-w-3xl mx-auto">
+      {/* Same two-toned treatment as the CareBridge Draft panel on a document:
+          white above for the message, tinted below for the actions. */}
+      <div className="rounded-[10px] border border-purple-200 bg-white shadow-sm overflow-hidden">
+        <div className="flex items-start gap-3 px-4 py-3">
+          <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
+            <Sparkles className="w-4 h-4 text-[rgb(154,38,214)]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-lg font-semibold text-purple-900">
+              {context === 'careplan' ? 'No CareBridge draft care plan' : 'No recordings yet'}
+            </p>
+            <p className="text-sm text-purple-800 mt-0.5">
+              {context === 'careplan' ? (
+                <>
+                  Nothing has been recorded for {firstName}, so CareBridge has no assessment to draft a care plan
+                  from. Record one and the outcomes and tasks are drafted for you to review — or draft the care plan
+                  manually and write it up yourself in Care Management.
+                </>
+              ) : (
+                <>
+                  No assessment or review has been recorded for {firstName} through CareBridge. Record one, or upload
+                  an existing audio file, and CareBridge drafts the paperwork from it.
+                </>
+              )}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 bg-purple-50 border-t border-purple-200 px-4 py-3">
+          <Button icon={<Mic className="w-4 h-4" />}>Record an assessment</Button>
+          {context === 'careplan' ? (
+            <Button
+              variant="secondary"
+              icon={<Pencil className="w-4 h-4" />}
+              onClick={() => navigate(`/customers/${customer.id}/caremanagement`)}
+            >
+              Draft care plan manually
+            </Button>
+          ) : (
+            <Button variant="secondary" icon={<Upload className="w-4 h-4" />}>Upload a recording</Button>
+          )}
+        </div>
+      </div>
+
+      {/* The plan's two halves still shown, empty — so the tab reads as "this
+          plan has nothing in it yet" rather than as a page that failed to load. */}
+      {context === 'careplan' && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <EmptyDraftPanel Icon={Target} title="Suggested Outcomes" accent="bg-amber-100 text-amber-700" />
+          <EmptyDraftPanel Icon={ListChecks} title="Suggested Tasks" accent="bg-purple-100 text-[rgb(109,27,152)]" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EmptyDraftPanel({ Icon, title, accent }: { Icon: React.ComponentType<{ className?: string }>; title: string; accent: string }) {
+  return (
+    <div className="rounded-[10px] border border-dashed border-gray-300 bg-white px-5 py-8 text-center">
+      <div className={`w-9 h-9 rounded-lg ${accent} flex items-center justify-center mx-auto mb-3`}>
+        <Icon className="w-5 h-5" />
+      </div>
+      <p className="text-base font-semibold text-gray-900">{title}</p>
+      <p className="text-sm text-gray-500 mt-1">
+        None suggested yet — CareBridge fills these in from a recorded assessment.
+      </p>
     </div>
   );
 }
@@ -2098,6 +2291,7 @@ function TranscriptView({ recording, customer }: { recording: Recording; custome
 export function RecordingDocumentView({ recordingId }: { recordingId: string }) {
   const customer = useCustomer();
   const recording = resolveRecording(customer.id, recordingId);
+  if (!recording) return <NoCareBridgeContent context="recording" />;
   return <TranscriptView recording={recording} customer={customer} />;
 }
 
@@ -2350,22 +2544,26 @@ export function CareBridgeSubnav() {
   // Guard against a recording picked for a previously-viewed customer that
   // doesn't exist for this one (e.g. following a link between customers).
   useEffect(() => {
+    if (recordings.length === 0) return;
     if (!recordings.find(r => r.id === recordingId)) {
       setRecordingId(recordings[0].id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customer.id]);
 
+  // Undefined for a customer CareBridge has never recorded (e.g. Vera
+  // Bramwell) — there's no draft to save or discard, so the actions and the
+  // recording controls below drop away and the page shows its empty state.
   const currentRecording = recordings.find(r => r.id === recordingId) ?? recordings[0];
   const carePlanCtaLabel = customer.hasCarePlan ? 'Save updates' : 'Pre-fill assessment & care plan';
   const ctaLabel = tab === 'careplan'
     ? carePlanCtaLabel
-    : currentRecording.isCarePlanFocus
+    : currentRecording?.isCarePlanFocus
       ? carePlanCtaLabel
       : 'Save to customer file';
   // Only the Recordings tab currently tracks per-field/per-section review
   // state — nothing to block on yet for the cumulative Draft Care Plan tab.
-  const ctaDisabled = tab === 'recording' && hasPendingReview(currentRecording);
+  const ctaDisabled = tab === 'recording' && !!currentRecording && hasPendingReview(currentRecording);
 
   return (
     <div className="bg-gray-50 border-b border-gray-200">
@@ -2373,20 +2571,22 @@ export function CareBridgeSubnav() {
       <div className={`max-w-[1600px] w-full mx-auto px-6 flex items-center justify-between gap-4 transition-all duration-300 ${scrolled ? 'py-2' : 'py-3.5'}`}>
         <SubnavTabs tabs={TABS} activeTab={tab} onChange={id => setTab(id as Tab)} />
 
-        <div className="flex items-center gap-3">
-          <Button variant="tertiary">Discard draft</Button>
-          <Button
-            icon={<ArrowRight className="w-4 h-4" />}
-            disabled={ctaDisabled}
-            title={ctaDisabled ? 'Accept the outstanding drafted fields before saving' : undefined}
-          >
-            {ctaLabel}
-          </Button>
-        </div>
+        {currentRecording && (
+          <div className="flex items-center gap-3">
+            <Button variant="tertiary">Discard draft</Button>
+            <Button
+              icon={<ArrowRight className="w-4 h-4" />}
+              disabled={ctaDisabled}
+              title={ctaDisabled ? 'Accept the outstanding drafted fields before saving' : undefined}
+            >
+              {ctaLabel}
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Secondary controls — only meaningful within This Recording */}
-      {tab === 'recording' && (
+      {tab === 'recording' && currentRecording && (
         <div className={`max-w-[1600px] w-full mx-auto px-6 flex items-center gap-3 border-t border-gray-200 transition-all duration-300 ${scrolled ? 'py-2' : 'py-3'}`}>
           <RecordingPicker recordings={recordings} recordingId={currentRecording.id} onChange={setRecordingId} />
 
@@ -2418,7 +2618,12 @@ export function CareBridgePage() {
   let mainContent: React.ReactNode;
   let chat: ChatMessage[] | null;
 
-  if (tab === 'careplan') {
+  if (recordings.length === 0 || !recording) {
+    // Nothing recorded for this customer — both tabs show the empty state,
+    // and there's no draft for the assistant to talk about, so no chat.
+    mainContent = <NoCareBridgeContent context={tab === 'careplan' ? 'careplan' : 'recording'} />;
+    chat = null;
+  } else if (tab === 'careplan') {
     // No single recording backs the cumulative draft — use the most recent
     // care-plan-focused recording's chat thread as the assistant's context.
     mainContent = <CarePlanView carePlan={buildCarePlan(recordings)} hasCarePlan={customer.hasCarePlan} />;

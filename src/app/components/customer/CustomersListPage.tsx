@@ -3,6 +3,7 @@ import { Search, SlidersHorizontal, ArrowUpDown, Heart, Plus } from 'lucide-reac
 import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip';
 import { Button } from '../buttons/Button';
 import { CUSTOMER_LIST, type CustomerProfile } from '../../data/customers';
+import { useFeatureFlag } from '../../data/FeatureFlagsContext';
 
 function reviewBadgeStyle(daysLeft: number): React.CSSProperties {
   if (daysLeft <= 0) return { backgroundColor: '#fee2e2', color: '#991b1b' };
@@ -31,9 +32,15 @@ function StatusBadge({ customer }: { customer: CustomerProfile }) {
 }
 
 function CustomerCard({ customer }: { customer: CustomerProfile }) {
+  // A card must never land on a tab that isn't there — with the deprecated
+  // CareBridge tab switched off, a CareBridge lander goes to Care Management
+  // instead (where the plan is written up by hand).
+  const showCareBridgeTab = useFeatureFlag('customerCareBridgeTab');
+  const landingTab = customer.landingTab === 'carebridge' && !showCareBridgeTab ? 'caremanagement' : customer.landingTab;
+
   return (
     <Link
-      to={`/customers/${customer.id}/${customer.landingTab}`}
+      to={`/customers/${customer.id}/${landingTab}`}
       className="bg-white rounded-[10px] border border-gray-200 overflow-hidden shadow-sm hover:border-purple-300 hover:shadow-md transition-all block group"
     >
       {/* Header */}

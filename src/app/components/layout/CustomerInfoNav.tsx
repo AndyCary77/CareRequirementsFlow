@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router';
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
 import { useScrolled } from '../../hooks/useScrolled';
 import { useCustomer } from '../../data/CustomerContext';
+import { useFeatureFlag } from '../../data/FeatureFlagsContext';
 
 const inactiveTabClass =
   'px-4 py-3 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 whitespace-nowrap border-b-2 border-transparent hover:border-gray-300 transition-colors';
@@ -90,6 +91,7 @@ export function CustomerInfo({ withSlideOffset = false }: { withSlideOffset?: bo
   const { pathname } = useLocation();
   const scrolled = useScrolled();
   const customer = useCustomer();
+  const showCareBridgeTab = useFeatureFlag('customerCareBridgeTab');
   const base = `/customers/${customer.id}`;
 
   const contactBits = [
@@ -168,7 +170,12 @@ export function CustomerInfo({ withSlideOffset = false }: { withSlideOffset?: bo
         <div className="border-t border-gray-200 -mx-6 px-6">
           <nav className="flex gap-1 overflow-x-auto">
             <a href="#" className={inactiveTabClass}>Dashboard</a>
-            <Link to={`${base}/carebridge`} className={tabClass(pathname, `${base}/carebridge`)}>CareBridge</Link>
+            {/* Deprecated as a tab of its own — CareBridge is managed per
+                section now, with the recordings under Documents. Kept behind
+                the Admin feature switch so it can still be reviewed. */}
+            {showCareBridgeTab && (
+              <Link to={`${base}/carebridge`} className={tabClass(pathname, `${base}/carebridge`)}>CareBridge</Link>
+            )}
             <Link to={`${base}/caremanagement`} className={tabClass(pathname, `${base}/caremanagement`)}>Care Management</Link>
             <DropdownTab
               label="Care Records"

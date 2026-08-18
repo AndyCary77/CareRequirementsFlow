@@ -364,9 +364,18 @@ const EDITH_VISIT_2_DATA: VisitData = {
   careRequirements: emptyCareRequirements,
 };
 
+// Vera's enquiry produced the same two visits as Edith's, a month later —
+// kept in step with VERA_VISITS in caremanagement/types.ts, which is where
+// the Care Management tab reads them from.
+const VERA_VISIT_DATA: VisitData[] = [EDITH_VISIT_1_DATA, EDITH_VISIT_2_DATA].map(visit => ({
+  ...visit,
+  startDate: '10/08/2026',
+}));
+
 const SERVICE_AGREEMENT_DATA: Record<string, VisitData[]> = {
   'arthur-barrington': [VISIT_1_DATA, VISIT_2_DATA],
   'edith-caldwell': [EDITH_VISIT_1_DATA, EDITH_VISIT_2_DATA],
+  'vera-bramwell': VERA_VISIT_DATA,
 };
 
 export function ServiceAgreementPage() {

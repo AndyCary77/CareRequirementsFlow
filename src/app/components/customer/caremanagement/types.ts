@@ -1,3 +1,5 @@
+import { veraise, veraText } from '../../../data/vera-from-edith';
+
 export type TaskCategory = 'General' | 'Nutrition' | 'Medications' | 'Hydration' | 'Outcome Tracking' | 'Observations';
 
 export interface MedicationDetails {
@@ -429,6 +431,72 @@ export const EDITH_TASKS: CareTask[] = [
   },
 ];
 
+// ─── Vera Bramwell ────────────────────────────────────────────────────────────
+// Edith's plan re-skinned (see data/vera-from-edith.ts for the substitutions
+// and why it's done this way). Her ids are Edith's with the leading "e"
+// swapped for a "v" so the two customers' records can never be confused for
+// one another in accepted/discarded state, which is keyed by id alone.
+const VERA_DRAFT_SOURCE = veraText(EDITH_DRAFT_SOURCE);
+const veraId = (id: string) => `v${id.slice(1)}`;
+
+// Her visits are live, not drafted: they came out of the enquiry and are set
+// up in Rostering (see SERVICE_AGREEMENT_DATA), same as Edith's.
+export const VERA_VISITS: CareVisit[] = EDITH_VISITS.map(visit => {
+  const mapped: CareVisit = {
+    ...veraise(visit),
+    id: veraId(visit.id),
+    outcomeIds: visit.outcomeIds.map(veraId),
+    taskIds: visit.taskIds.map(veraId),
+  };
+  // 'vv1' is the morning call — where the 4-week review's dizziness-on-
+  // standing check ('vt11', defined further down) actually happens.
+  return mapped.id === 'vv1' ? { ...mapped, taskIds: [...mapped.taskIds, 'vt11'] } : mapped;
+});
+
+// A second, later recording — a 4-week review, genuinely hers rather than
+// re-skinned from Edith (see the note on RECORDINGS['vera-bramwell'] in
+// CareBridgePage.tsx) — refines outcome vo1 (falls risk) with one new task,
+// same as Arthur's 6-week review adds a task via `carePlanTaskAdditions`.
+// Its own `draftSource`, distinct from the initial assessment's, is what
+// gives "Draft care plan" two real recordings to draft from rather than one.
+const VERA_REVIEW_SOURCE = '4-Week Review, 1 Sep 2026';
+const VERA_REVIEW_TASK: CareTask = {
+  id: 'vt11',
+  title: 'Postural Dizziness Check',
+  category: 'Observations',
+  description: "Check I'm not dizzy or unsteady when I stand up, since starting ramipril for my blood pressure — let the office know if I am, given my falls risk.",
+  startDate: '01/09/2026',
+  outcomeIds: ['vo1'],
+  visitIds: ['vv1'],
+  status: 'active',
+  reviewed: false,
+  draftSource: VERA_REVIEW_SOURCE,
+};
+
+const VERA_OUTCOMES: Outcome[] = EDITH_OUTCOMES.map(outcome => {
+  const mapped: Outcome = {
+    ...veraise(outcome),
+    id: veraId(outcome.id),
+    taskIds: outcome.taskIds.map(veraId),
+    visitIds: outcome.visitIds.map(veraId),
+    draftSource: VERA_DRAFT_SOURCE,
+  };
+  // vo1 is "Maintain Safe Mobility & Reduce Falls Risk" — the outcome the
+  // review's dizziness check actually belongs under.
+  return mapped.id === 'vo1' ? { ...mapped, taskIds: [...mapped.taskIds, VERA_REVIEW_TASK.id] } : mapped;
+});
+
+const VERA_TASKS: CareTask[] = [
+  ...EDITH_TASKS.map(task => ({
+    ...veraise(task),
+    id: veraId(task.id),
+    outcomeIds: task.outcomeIds.map(veraId),
+    visitIds: task.visitIds.map(veraId),
+    draftSource: VERA_DRAFT_SOURCE,
+  })),
+  VERA_REVIEW_TASK,
+];
+
 // Care-plan data keyed by customer id. Unknown customers get an empty plan.
 export interface CarePlanData {
   tasks: CareTask[];
@@ -439,4 +507,25 @@ export interface CarePlanData {
 export const CARE_DATA: Record<string, CarePlanData> = {
   'arthur-barrington': { tasks: TASKS, outcomes: OUTCOMES, visits: VISITS },
   'edith-caldwell': { tasks: EDITH_TASKS, outcomes: EDITH_OUTCOMES, visits: EDITH_VISITS },
+  // Nothing drafted into her plan yet — her outcomes and tasks only appear
+  // once someone drafts them from her recordings (see CARE_PLAN_DRAFTS and
+  // the "Draft care plan" flow in CareManagementContext). Her visits are
+  // already there: they came from the enquiry, not from CareBridge.
+  'vera-bramwell': { tasks: [], outcomes: [], visits: VERA_VISITS },
+};
+
+/**
+ * What CareBridge would draft into a customer's plan from their recordings —
+ * held separately from CARE_DATA so it can be materialised on demand rather
+ * than shipping as part of the plan. Drives the "Draft care plan" flow on the
+ * Care Management tab: the records land as `reviewed: false` drafts, same as
+ * Edith's arrived, so they still go through the same per-record accept step.
+ *
+ * No flat "source" here — which recording(s) contributed is read back off
+ * each record's own `draftSource` (useCareData dedupes them), since a plan
+ * drafted from several recordings can have outcomes/tasks attributed to
+ * different ones.
+ */
+export const CARE_PLAN_DRAFTS: Record<string, { outcomes: Outcome[]; tasks: CareTask[] }> = {
+  'vera-bramwell': { outcomes: VERA_OUTCOMES, tasks: VERA_TASKS },
 };

@@ -4,7 +4,7 @@ import { StarSolidIcon } from '../../icons/CarePlanIcons';
 import { useCareManagement } from './CareManagementContext';
 import { useCareData } from './useCareData';
 import { TASK_CATEGORIES, type Outcome } from './types';
-import { TaskBadge, VisitBadge, ActiveBadge, StatusToggle, EmptyTab, inputClass, labelClass, CATEGORY_CONFIG, DraftActionBar, CarePlanDraftBanner } from './shared';
+import { TaskBadge, VisitBadge, ActiveBadge, StatusToggle, EmptyTab, inputClass, labelClass, CATEGORY_CONFIG, DraftActionBar, CarePlanDraftBanner, CarePlanDraftFlow } from './shared';
 
 function OutcomeCard({ outcome, onSelect }: { outcome: Outcome; onSelect: () => void }) {
   const { TASKS, VISITS } = useCareData();
@@ -97,7 +97,7 @@ function OutcomeCard({ outcome, onSelect }: { outcome: Outcome; onSelect: () => 
 }
 
 function OutcomeEditForm({ outcome, onDiscarded }: { outcome: Outcome; onDiscarded: () => void }) {
-  const { TASKS, OUTCOMES, pending, draftSource } = useCareData();
+  const { TASKS, OUTCOMES, pending, draftSources } = useCareData();
   const { accept, discard, setDirty } = useCareManagement();
   const OUTCOME_TITLES = OUTCOMES.map(o => o.title);
   const isDraft = outcome.reviewed === false;
@@ -110,7 +110,7 @@ function OutcomeEditForm({ outcome, onDiscarded }: { outcome: Outcome; onDiscard
       <CarePlanDraftBanner
         pendingOutcomes={pending.outcomes}
         pendingTasks={pending.tasks}
-        source={draftSource}
+        sources={draftSources}
         activeTab="outcomes"
       />
 
@@ -239,10 +239,11 @@ function blankOutcome(): Outcome {
 }
 
 export function OutcomesTab() {
-  const { OUTCOMES, pending, draftSource } = useCareData();
+  const { OUTCOMES, pending, draftSources } = useCareData();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = selectedId === NEW_OUTCOME_ID ? blankOutcome() : selectedId ? OUTCOMES.find(o => o.id === selectedId) : null;
-  const { registerBack, clearBack, registerAdd, clearAdd, registerDelete, clearDelete, discard } = useCareManagement();
+  const { registerBack, clearBack, registerAdd, clearAdd, registerDelete, clearDelete, discard, draftStep } = useCareManagement();
+  const drafting = draftStep !== null;
 
   // "Add Outcome" lives in the subnav's actions row, not here — only the
   // list view offers it, same scoping as the back button being detail-only.
@@ -269,14 +270,20 @@ export function OutcomesTab() {
 
   return (
     <div className="space-y-4">
+      {/* Offer / progress / success for drafting the plan from a recording.
+          Renders nothing unless this customer actually has a draft available. */}
+      <CarePlanDraftFlow />
+
       {OUTCOMES.length === 0 ? (
-        <EmptyTab label="outcomes" />
+        // Suppressed mid-run: "No outcomes yet" directly under a stepper that
+        // is in the middle of drafting them reads as a contradiction.
+        drafting ? null : <EmptyTab label="outcomes" />
       ) : (
         <>
           <CarePlanDraftBanner
             pendingOutcomes={pending.outcomes}
             pendingTasks={pending.tasks}
-            source={draftSource}
+            sources={draftSources}
             activeTab="outcomes"
           />
           {OUTCOMES.map(outcome => (

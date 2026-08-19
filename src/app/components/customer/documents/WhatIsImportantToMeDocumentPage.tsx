@@ -1,6 +1,6 @@
 import { createContext, useContext as useReactContext, useState, useRef, useEffect, Fragment } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { ArrowLeft, History, Save, Printer, Trash2, Mic, ChevronDown, ChevronRight, Upload, Link2Off, CheckCircle2, Send, Check, Loader2 } from 'lucide-react';
+import { ArrowLeft, History, Save, Printer, Trash2, Mic, ChevronDown, ChevronRight, Upload, Link2Off, CheckCircle2, Send, Check, Loader2, Info } from 'lucide-react';
 import { Button } from '../../buttons/Button';
 import {
   DropdownMenu,
@@ -30,10 +30,12 @@ type LinkedSource = { type: 'recording'; id: string } | { type: 'upload'; fileNa
 // Each step gets its own dwell time rather than one uniform duration —
 // identical timings for every step is what made it feel mechanical/staged
 // rather than like a real variable-length process.
+// Slowed to a ~15s total run (was ~4.7s) — closer to how long a real upload
+// and transcription actually takes, same ratio between steps as before.
 const PROCESSING_STEPS = [
-  { label: 'Fetching audio', ms: 1100 },
-  { label: 'Transcribing recording', ms: 2100 },
-  { label: 'Filling in document', ms: 1500 },
+  { label: 'Fetching audio', ms: 3300 },
+  { label: 'Transcribing recording', ms: 6400 },
+  { label: 'Filling in document', ms: 4600 },
 ];
 // The connector between two circles snaps shut quickly the moment the step
 // before it finishes, rather than crawling in lockstep with the next step's
@@ -264,7 +266,18 @@ export function WiitmDocumentContent() {
         // growing out of that circle over the next step's dwell time —
         // rather than one shared bar whose fill fraction is computed from
         // the overall progress (harder to read as "coming from" a circle).
-        <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 shadow">
+        <>
+          {/* Sits above the CareBridge panel only while processing is
+              actually running — the run is ~15s now, long enough that
+              someone might otherwise wait it out or worry that navigating
+              away cancels it. */}
+          <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 mb-2">
+            <Info className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+            <p className="text-sm text-blue-800">
+              You can leave this page while the upload is being processed — you won't lose anything.
+            </p>
+          </div>
+          <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 shadow">
           <div className="flex items-center gap-2.5 mb-4">
             <object type="image/svg+xml" data={passgeniusPurpleUrl} className="w-6 h-6 flex-shrink-0" aria-label="PASSgenius" tabIndex={-1} />
             <p className="text-sm font-semibold text-purple-900">Generating this draft from the recording…</p>
@@ -303,7 +316,8 @@ export function WiitmDocumentContent() {
               );
             })}
           </div>
-        </div>
+          </div>
+        </>
       ) : linkedSource ? (
         // Two-toned rather than one purple-tinted block: a white top half for the
         // icon/title/description, and a purple bottom half housing the action

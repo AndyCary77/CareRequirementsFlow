@@ -1,7 +1,7 @@
 .nav-mode-toggle {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   border: none;
   background: none;
   padding: 0;
@@ -73,13 +73,20 @@
 .nav-mode-toggle--dark[aria-checked='true'] .nav-mode-toggle-track { background: #ffffff; }
 .nav-mode-toggle--dark[aria-checked='true'] .nav-mode-toggle-thumb { background: #6d1b98; }
 .nav-mode-toggle--dark {
-  padding: 6px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  /* Padding trimmed further (was 6px 12px, then 6px 8px) — feedback that the
+     chip took up too much space on the legacy bar; shortening the label to
+     "New!" freed up room but the chip's own padding was still wider than it
+     needed to be. Border also more visible against the bar (was 0.4 alpha). */
+  padding: 4px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
   border-radius: 999px;
   transition: border-color 0.12s ease;
 }
 .nav-mode-toggle--dark:hover {
-  border-color: rgba(255, 255, 255, 0.7);
+  /* Bumped to fully opaque — resting border is now the same 0.7 alpha this
+     used to only reach on hover, so hover needs its own step up to still
+     read as a distinct state. */
+  border-color: rgba(255, 255, 255, 1);
 }
 
 /* Custom tooltip — fixed-positioned via portal, arrow pointing up.

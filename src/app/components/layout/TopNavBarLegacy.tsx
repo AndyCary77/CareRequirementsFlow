@@ -5,7 +5,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faUser, faUserGroup, faCalendarCheck, faCalendarDays, faChartLine,
   faFileLines, faTriangleExclamation, faComment, faHourglassHalf,
-  faCircleQuestion, faPen, faBars,
+  faQuestion, faPen, faBars,
 } from '@fortawesome/free-solid-svg-icons';
 import { useScrolled } from '../../hooks/useScrolled';
 import { NavModeToggle } from './NavModeToggle';
@@ -55,29 +55,31 @@ export function Header() {
           <div className="h-4 w-px bg-purple-400"></div>
 
           <div className="flex items-center gap-3 text-white">
-            <span className="flex items-center justify-center w-8 h-8 rounded-full bg-white/15 cursor-pointer hover:bg-white/25 transition-colors">
-              <FontAwesomeIcon icon={faCircleQuestion} className="w-4 h-4" />
+            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#dfa5ff] cursor-pointer hover:bg-[#e9bdff] transition-colors">
+              <FontAwesomeIcon icon={faQuestion} className="w-2.5 h-2.5 text-[#6d1b98]" />
             </span>
-            <span className="flex items-center justify-center w-8 h-8 rounded-full bg-white/15 cursor-pointer hover:bg-white/25 transition-colors">
-              <FontAwesomeIcon icon={faPen} className="w-3.5 h-3.5" />
+            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#dfa5ff] cursor-pointer hover:bg-[#e9bdff] transition-colors">
+              <FontAwesomeIcon icon={faPen} className="w-2.5 h-2.5 text-[#6d1b98]" />
             </span>
             {/* White PASSgenius mark — the variant actually built for a dark
                 background like this bar (defaults to white fill, animates
                 to the brand gradient on hover), unlike the purple variant
-                used on the light CareBridge draft panels elsewhere. */}
-            <span className="flex items-center justify-center w-8 h-8 rounded-full bg-white/15 cursor-pointer hover:bg-white/25 transition-colors">
-              <object type="image/svg+xml" data={passgeniusWhiteUrl} className="w-5 h-5 pointer-events-none" aria-label="PASSgenius" tabIndex={-1} />
+                used on the light CareBridge draft panels elsewhere. No
+                circular backing (unlike Help/Pen either side of it) — the
+                mark reads as its own brand icon, not another plain nav
+                button. */}
+            <span className="flex items-center justify-center w-6 h-6 cursor-pointer">
+              <object type="image/svg+xml" data={passgeniusWhiteUrl} className="w-6 h-6 pointer-events-none" aria-label="PASSgenius" tabIndex={-1} />
             </span>
+            {/* Sits right before More — lets someone switch back to the new
+                side-nav layout without disrupting anyone who's deliberately
+                opted into this one. */}
+            <NavModeToggle variant="dark" current="legacy" />
             <div className="flex items-center gap-1 cursor-pointer hover:opacity-80">
               <FontAwesomeIcon icon={faBars} className="w-4 h-4" />
               <span>More</span>
             </div>
           </div>
-
-          {/* Far right, after everything else — lets someone switch back to
-              the new side-nav layout without disrupting anyone who's
-              deliberately opted into this one. */}
-          <NavModeToggle variant="dark" current="legacy" />
         </nav>
       </div>
     </header>

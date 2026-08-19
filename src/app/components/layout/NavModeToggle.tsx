@@ -26,11 +26,13 @@ const SLIDE_MS = 180;
  *
  * Copy avoids "nav"/"UI" jargon in favour of plain, concrete wording — this
  * app's user base is often not especially IT-literate. The legacy side is
- * framed as an invitation ("Try new look") since for most people this
- * switch is the first they'll even hear of the new layout; the new side is
- * a plain, neutral escape hatch ("Back to classic") rather than a second
- * pitch. The tooltip spells out what it actually does — custom-rendered
- * rather than the native `title`, which has a noticeable show-delay.
+ * framed as an invitation ("New!") since for most people this switch is the
+ * first they'll even hear of the new layout; the new side is a plain,
+ * neutral escape hatch ("Back to classic") rather than a second pitch.
+ * "New!" is deliberately terse — feedback that the fuller "Try new look"
+ * crowded the legacy bar — the tooltip still carries the fuller
+ * explanation. Custom-rendered rather than the native `title`, which has a
+ * noticeable show-delay.
  */
 export function NavModeToggle({ variant, current }: { variant: 'light' | 'dark'; current: NavMode }) {
   const { toggle } = useNavMode();
@@ -41,11 +43,11 @@ export function NavModeToggle({ variant, current }: { variant: 'light' | 'dark';
   const [flipping, setFlipping] = useState(false);
   const isOn = flipping ? !restingOn : restingOn;
 
-  const label = current === 'new' ? 'Back to classic' : 'Try new look';
+  const label = current === 'new' ? 'Back to classic' : 'New!';
   const description =
     current === 'new'
       ? 'Go back to the old top navigation'
-      : 'Try a new, cleaner navigation';
+      : 'Try a new, cleaner side navigation bar';
 
   const handleClick = () => {
     setFlipping(true);

@@ -1,6 +1,6 @@
 import { createContext, useContext as useReactContext, useState, useRef } from 'react';
 import { useNavigate } from 'react-router';
-import { ArrowLeft, History, Save, Printer, Trash2, Mic, ChevronDown, ChevronRight, Upload, Link2Off, CheckCircle2, Send } from 'lucide-react';
+import { ArrowLeft, History, Printer, Trash2, Mic, ChevronDown, ChevronRight, Upload, Link2Off, CheckCircle2, Send } from 'lucide-react';
 import { Button } from '../../buttons/Button';
 import {
   DropdownMenu,
@@ -139,7 +139,7 @@ export function CarePlanDocumentSubnav() {
 
             <div className="flex items-center gap-3">
               <Button variant="tertiary" icon={<Printer className="w-4 h-4" />} onClick={() => window.print()}>Print</Button>
-              <Button variant="tertiary" icon={<Trash2 className="w-4 h-4" />}>Delete</Button>
+              <Button variant="tertiary-danger" icon={<Trash2 className="w-4 h-4" />}>Delete</Button>
               {/* "Save Draft" while still a draft — a genuine use case (accepting
                   some fields but not all, then coming back later) even though
                   Publish is the terminal action. Not gated on `dirty` here: that
@@ -147,7 +147,6 @@ export function CarePlanDocumentSubnav() {
                   clicking Accept, so it can't reliably tell whether
                   there's anything worth saving — always enabled instead. */}
               <Button
-                icon={<Save className="w-4 h-4" />}
                 disabled={published && !dirty}
                 onClick={() => setDirty(false)}
               >

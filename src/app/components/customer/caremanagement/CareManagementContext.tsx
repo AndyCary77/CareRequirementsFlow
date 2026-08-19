@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCustomer } from '../../../data/CustomerContext';
 
 type Tab = 'outcomes' | 'tasks' | 'visits' | 'caregroups';
 
@@ -86,6 +87,21 @@ interface CareManagementContextType {
   /** The success message is dismissible; staying dismissed is also per-session. */
   draftNoticeDismissed: boolean;
   dismissDraftNotice: () => void;
+  /**
+   * Whether this customer's care plan has been formally published — i.e. it's
+   * a real, live plan rather than a CareBridge draft still awaiting sign-off.
+   * Seeded from `customer.hasCarePlan` (true for a customer who already had a
+   * plan, e.g. Arthur; false for one whose plan only exists as a draft so
+   * far, e.g. Edith/Vera) and flipped by `publishPlan`. Drives the subnav's
+   * "Save Draft" vs "Update" label and whether the CareBridge draft banner's
+   * Publish button is offered at all.
+   */
+  planPublished: boolean;
+  /** Gated by the caller on nothing still pending — same rule as the Documents tab's own Publish button. */
+  publishPlan: () => void;
+  /** The "plan published" confirmation is dismissible, same pattern as the draft-complete notice. */
+  planPublishedNoticeDismissed: boolean;
+  dismissPlanPublishedNotice: () => void;
 }
 
 const CareManagementContext = createContext<CareManagementContextType>({
@@ -113,9 +129,14 @@ const CareManagementContext = createContext<CareManagementContextType>({
   draftedTasksVisible: false,
   draftNoticeDismissed: false,
   dismissDraftNotice: () => {},
+  planPublished: false,
+  publishPlan: () => {},
+  planPublishedNoticeDismissed: true,
+  dismissPlanPublishedNotice: () => {},
 });
 
 export function CareManagementProvider({ children }: { children: React.ReactNode }) {
+  const customer = useCustomer();
   const [activeTab, setActiveTab] = useState<Tab>('outcomes');
   const [backFn, setBackFn] = useState<{ fn: () => void } | null>(null);
   const [addFn, setAddFn] = useState<{ label: string; fn: () => void } | null>(null);
@@ -126,6 +147,12 @@ export function CareManagementProvider({ children }: { children: React.ReactNode
   const [draftStep, setDraftStep] = useState<number | null>(null);
   const [draftComplete, setDraftComplete] = useState(false);
   const [draftNoticeDismissed, setDraftNoticeDismissed] = useState(false);
+  // Seeded from the customer's existing status — Arthur already has a live
+  // plan, Edith/Vera's only exists as a CareBridge draft until Publish is
+  // clicked. Read once on mount, same as every other piece of session state
+  // here (see the customer-navigation caveat on acceptedIds/discardedIds).
+  const [planPublished, setPlanPublished] = useState(customer.hasCarePlan);
+  const [planPublishedNoticeDismissed, setPlanPublishedNoticeDismissed] = useState(true);
 
   const startCarePlanDraft = useCallback(() => {
     setDraftComplete(false);
@@ -174,6 +201,14 @@ export function CareManagementProvider({ children }: { children: React.ReactNode
     setDiscardedIds(prev => new Set(prev).add(id));
     setDirty(true);
   }, []);
+  // Callers gate this on nothing still pending, same as Documents' own
+  // Publish — not enforced here too since the banner already hides the
+  // button in that state (see CarePlanDraftBanner).
+  const publishPlan = useCallback(() => {
+    setPlanPublished(true);
+    setPlanPublishedNoticeDismissed(false);
+  }, []);
+  const dismissPlanPublishedNotice = useCallback(() => setPlanPublishedNoticeDismissed(true), []);
 
   const value = useMemo(
     () => ({
@@ -181,12 +216,14 @@ export function CareManagementProvider({ children }: { children: React.ReactNode
       deleteFn, registerDelete, clearDelete, acceptedIds, accept, discardedIds, discard, dirty, setDirty,
       draftStep, draftComplete, startCarePlanDraft, draftedOutcomesVisible, draftedTasksVisible,
       draftNoticeDismissed, dismissDraftNotice,
+      planPublished, publishPlan, planPublishedNoticeDismissed, dismissPlanPublishedNotice,
     }),
     [
       activeTab, backFn, registerBack, clearBack, addFn, registerAdd, clearAdd,
       deleteFn, registerDelete, clearDelete, acceptedIds, accept, discardedIds, discard, dirty,
       draftStep, draftComplete, startCarePlanDraft, draftedOutcomesVisible, draftedTasksVisible,
       draftNoticeDismissed, dismissDraftNotice,
+      planPublished, publishPlan, planPublishedNoticeDismissed, dismissPlanPublishedNotice,
     ],
   );
 

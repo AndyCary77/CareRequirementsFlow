@@ -1,6 +1,6 @@
 import { forwardRef, type ReactNode } from 'react';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'tertiary';
+export type ButtonVariant = 'primary' | 'secondary' | 'tertiary' | 'tertiary-danger';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -28,6 +28,11 @@ const VARIANT: Record<ButtonVariant, string> = {
     'hover:bg-[rgba(154,38,214,0.05)]',
   tertiary:
     'bg-[#EDECF1] text-gray-700 border-0 hover:bg-[#DCD9E4]',
+  // Same tertiary shape, red-tinted for a destructive action — matches the
+  // Delete control already established in caremanagement/shared.tsx
+  // (DeleteButton) rather than a plain grey tertiary button for Delete.
+  'tertiary-danger':
+    'bg-red-50 text-red-700 border-0 hover:bg-red-100',
 };
 
 const SIZE_LABEL: Record<ButtonSize, string> = {

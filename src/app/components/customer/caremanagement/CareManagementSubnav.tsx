@@ -5,15 +5,13 @@ import { DeleteButton } from './shared';
 import { useCareManagement } from './CareManagementContext';
 import { useCareData } from './useCareData';
 import { useScrolled } from '../../../hooks/useScrolled';
-import { useCustomer } from '../../../data/CustomerContext';
 
 type Tab = 'outcomes' | 'tasks' | 'visits' | 'caregroups';
 
 export function CareManagementSubnav() {
-  const { activeTab, setActiveTab, backFn, addFn, deleteFn, dirty, setDirty } = useCareManagement();
+  const { activeTab, setActiveTab, backFn, addFn, deleteFn, dirty, setDirty, planPublished } = useCareManagement();
   const { pending } = useCareData();
   const scrolled = useScrolled();
-  const customer = useCustomer();
 
   // Counts of CareBridge-drafted items still awaiting review, so the work is
   // findable from whichever tab you're on. SubnavTabs hides a zero badge.
@@ -37,7 +35,7 @@ export function CareManagementSubnav() {
               <Button variant="tertiary" icon={<ArrowLeft className="w-4 h-4" />} onClick={backFn.fn}>
                 Back to list
               </Button>
-            ) : customer.hasCarePlan ? (
+            ) : planPublished ? (
               <div className="flex flex-col gap-0.5">
                 <span className="text-xs text-gray-500 whitespace-nowrap">Next review</span>
                 <span
@@ -47,17 +45,18 @@ export function CareManagementSubnav() {
                   26-03-2026
                 </span>
               </div>
-            ) : pending.outcomes + pending.tasks > 0 ? (
-              // No live plan yet, but there's a CareBridge draft awaiting
-              // review — same slot the saved-plan review date sits in,
-              // amber to match the Draft badge used on the drafted cards.
+            ) : (
+              // Not published yet — whether or not anything's still pending
+              // review, it isn't a real plan until Publish is clicked. Same
+              // slot the saved-plan review date sits in, amber to match the
+              // Draft badge used on the drafted cards.
               <div className="flex flex-col gap-0.5">
                 <span className="text-xs text-gray-500 whitespace-nowrap">Care plan</span>
                 <span className="px-2.5 py-1 text-xs font-bold uppercase text-amber-800 whitespace-nowrap w-fit rounded-md border border-amber-300 bg-amber-100">
                   Draft
                 </span>
               </div>
-            ) : null}
+            )}
           </div>
 
           <div className="flex items-center gap-3">
@@ -68,12 +67,13 @@ export function CareManagementSubnav() {
             ) : (
               <>
                 <Button variant="tertiary" icon={<Printer className="w-4 h-4" />}>Print</Button>
-                {/* "Update" once there's a live plan to modify, "Save" while
-                    there's nothing live yet (e.g. Edith, still all-draft) —
-                    same distinction as CarePlanDocumentSubnav's Save/Save
-                    Draft. Disabled until something's actually changed. */}
+                {/* "Update" once the plan's been published (a real plan to
+                    modify), "Save Draft" while it's still a CareBridge draft
+                    (e.g. Edith/Vera, pre-Publish) — same distinction as
+                    CarePlanDocumentSubnav's Save/Save Draft. Disabled until
+                    something's actually changed. */}
                 <Button disabled={!dirty} onClick={() => setDirty(false)}>
-                  {customer.hasCarePlan ? 'Update' : 'Save'}
+                  {planPublished ? 'Update' : 'Save Draft'}
                 </Button>
                 {addFn && (
                   <Button icon={<Plus className="w-4 h-4" />} onClick={addFn.fn}>

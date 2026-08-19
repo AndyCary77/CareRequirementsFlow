@@ -1,11 +1,14 @@
-import { Fragment } from 'react';
-import { Eye, Check, CheckCircle2, Info, Loader2, Sparkles, X, Trash2 } from 'lucide-react';
+import { Fragment, useRef } from 'react';
+import { useNavigate } from 'react-router';
+import { ChevronRight, Eye, Check, CheckCircle2, Info, Loader2, Send, Sparkles, X, Trash2 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '../../ui/tooltip';
 import { Button } from '../../buttons/Button';
 import { useCareManagement, CARE_PLAN_DRAFT_STEPS } from './CareManagementContext';
 import { useCareData } from './useCareData';
 import { useCustomer } from '../../../data/CustomerContext';
 import { StarSolidIcon, CalendarSolidIcon, TickSolidIcon, PlusSolidIcon, NutritionSolidIcon, HydrateSolidIcon } from '../../icons/CarePlanIcons';
+import passgeniusPurpleUrl from '../../icons/passgenius-purple.svg';
+import { triggerPassGeniusHover } from '../../icons/passgenius';
 import {
   AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
   AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel,
@@ -215,9 +218,11 @@ function DraftSourcesNote({ sources }: { sources: string[] }) {
 
 /**
  * CareBridge draft banner, shown above the list on each care-plan tab while
- * anything on it is still pending review. Same role as the "CareBridge Draft"
- * banner on a document: says where the content came from and how much is left
- * to review, without implying it's already part of the live plan.
+ * the plan is still a CareBridge draft rather than a real, published one.
+ * Same role as the "CareBridge Draft" banner on a document: says where the
+ * content came from and how much is left to review, without implying it's
+ * already part of the live plan — and, once nothing's left to review, offers
+ * the Publish step that actually makes it one.
  */
 export function CarePlanDraftBanner({
   pendingOutcomes, pendingTasks, sources, activeTab,
@@ -227,39 +232,117 @@ export function CarePlanDraftBanner({
   sources?: string[];
   activeTab: 'outcomes' | 'tasks' | 'visits';
 }) {
+  const customer = useCustomer();
+  const navigate = useNavigate();
+  const { planPublished, publishPlan, planPublishedNoticeDismissed, dismissPlanPublishedNotice } = useCareManagement();
+  // Hover-forwarded into the embedded PASSgenius mark, same trick as the
+  // Documents tab's own CareBridge Draft banner (see triggerPassGeniusHover).
+  const passgeniusRef = useRef<HTMLObjectElement>(null);
   const total = pendingOutcomes + pendingTasks;
-  if (total === 0) return null;
+  const hasDraftOrigin = !!sources && sources.length > 0;
+
+  if (planPublished) {
+    // Brief confirmation right after Publish, same dismissible pattern as
+    // the "Care plan drafted" success state — then gone for good, since a
+    // published plan has no further use for this banner.
+    if (planPublishedNoticeDismissed) return null;
+    return (
+      <div className="flex items-start gap-3 rounded-lg border border-[rgb(178,224,178)] bg-[rgb(232,247,232)] px-4 py-3">
+        <div className="w-7 h-7 rounded-lg bg-[rgb(212,240,212)] flex items-center justify-center flex-shrink-0">
+          <CheckCircle2 className="w-4 h-4 text-[rgb(33,166,33)]" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-base font-semibold text-[rgb(12,77,12)]">Care plan published</p>
+          <p className="text-sm text-[rgb(16,100,16)] mt-0.5">
+            This is now a real care plan, not a CareBridge draft — it's included in reports and reviews the same as
+            any other.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={dismissPlanPublishedNotice}
+          aria-label="Dismiss"
+          className="text-[rgb(16,100,16)] hover:text-[rgb(12,77,12)] transition-colors cursor-pointer flex-shrink-0"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    );
+  }
+
+  // Not published — nothing to show unless this plan actually came from
+  // CareBridge (a hand-built plan with no draft history has no "make this
+  // real" step to offer here).
+  if (!hasDraftOrigin) return null;
 
   const onThisTab = activeTab === 'outcomes' ? pendingOutcomes : activeTab === 'tasks' ? pendingTasks : 0;
   const thisTabLabel = activeTab === 'outcomes' ? 'outcome' : 'task';
 
   return (
-    <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 shadow-sm">
-      <div className="flex items-start gap-3">
-        <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
-          <Sparkles className="w-4 h-4 text-[rgb(154,38,214)]" />
+    // Same two-toned "CareBridge Draft" treatment as the Documents tab's own
+    // banner (CarePlanDocumentPage/WhatIsImportantToMeDocumentPage) — white
+    // top half for the icon/title/description, purple-50 bottom half for
+    // secondary detail — rather than a single purple-tinted block, so this
+    // reads as the same pattern wherever a CareBridge draft shows up, not a
+    // one-off style specific to Care Management.
+    <div
+      className="rounded-lg border border-purple-200 shadow overflow-hidden"
+      onMouseEnter={() => triggerPassGeniusHover(passgeniusRef.current, true)}
+      onMouseLeave={() => triggerPassGeniusHover(passgeniusRef.current, false)}
+    >
+      <div className="flex items-start gap-3 bg-white px-4 py-3">
+        <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 pt-1">
+          <object ref={passgeniusRef} type="image/svg+xml" data={passgeniusPurpleUrl} className="w-8 h-8" aria-label="PASSgenius" tabIndex={-1} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-base font-semibold text-purple-900 flex items-center gap-2 flex-wrap">
+          <p className="text-lg font-semibold text-purple-900 flex items-center gap-2 flex-wrap">
             CareBridge draft care plan
-            <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
-              {total} to review
-            </span>
+            {total > 0 && (
+              <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
+                {total} to review
+              </span>
+            )}
           </p>
           <p className="text-sm text-purple-800 mt-0.5">
-            {sources && sources.length > 0
-              ? <>Drafted from <DraftSourcesNote sources={sources} /> — nothing here is part of the live care plan until you accept it.</>
-              : <>Nothing here is part of the live care plan until you accept it.</>}
+            Drafted from <DraftSourcesNote sources={sources!} /> —{' '}
+            {total > 0
+              ? 'nothing here is part of the live care plan until you accept it.'
+              : "everything's been reviewed — publish to make this the customer's real care plan."}
           </p>
-          <p className="text-sm text-purple-800 mt-1.5">
+        </div>
+      </div>
+
+      {/* Bottom bar mirrors the Documents banner's own — secondary counts and
+          a link through to where the recording(s) actually live on the left,
+          Publish on the right (disabled, same as the Documents tab's own
+          Publish, until nothing's left to review). */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-purple-50 border-t border-purple-200 px-4 py-3">
+        <div className="flex items-center gap-4">
+          <p className="text-sm text-purple-800">
             {pendingOutcomes} outcome{pendingOutcomes === 1 ? '' : 's'} · {pendingTasks} task{pendingTasks === 1 ? '' : 's'}
             {activeTab === 'visits'
               ? ' — visits come from the service agreement in Rostering, so none are drafted here.'
               : onThisTab === 0
-                ? ` — none left on this tab.`
+                ? ' — none left on this tab.'
                 : ` — ${onThisTab} ${thisTabLabel}${onThisTab === 1 ? '' : 's'} on this tab.`}
           </p>
+          <button
+            type="button"
+            onClick={() => navigate(`/customers/${customer.id}/documents?tab=carebridge`)}
+            className="flex items-center gap-1 text-sm font-medium text-[rgb(154,38,214)] hover:underline cursor-pointer flex-shrink-0"
+          >
+            View recording{sources!.length > 1 ? 's' : ''}
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
         </div>
+        <Button
+          icon={<Send className="w-4 h-4" />}
+          disabled={total > 0}
+          title={total > 0 ? 'Accept the outstanding drafted fields before publishing' : undefined}
+          onClick={publishPlan}
+        >
+          Publish
+        </Button>
       </div>
     </div>
   );

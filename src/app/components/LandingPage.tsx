@@ -63,6 +63,7 @@ const MOBILE = [
     title: 'Mobile App',
     items: [
       { label: 'Account', to: '/src/app/components/mobile/account/' },
+      { label: 'CareBridge — Capture from documents', to: '/src/app/components/mobile/customer-documents/' },
       { label: 'CareBridge — Assessment capture', to: '/src/app/components/mobile/carebridge/' },
       { label: 'Messaging', to: '/src/app/components/mobile/messaging/' },
       { label: 'Mileage Pay', to: '/src/app/components/mobile/mileage-pay/' },

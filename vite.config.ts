@@ -61,6 +61,7 @@ export default defineConfig({
         // only shows up after a real build/deploy.
         mobileAccount: path.resolve(__dirname, 'src/app/components/mobile/account/index.html'),
         mobileCareBridge: path.resolve(__dirname, 'src/app/components/mobile/carebridge/index.html'),
+        mobileCustomerDocuments: path.resolve(__dirname, 'src/app/components/mobile/customer-documents/index.html'),
         mobileMessaging: path.resolve(__dirname, 'src/app/components/mobile/messaging/index.html'),
         mobileMileagePay: path.resolve(__dirname, 'src/app/components/mobile/mileage-pay/index.html'),
         mobileNotifications: path.resolve(__dirname, 'src/app/components/mobile/notifications/index.html'),

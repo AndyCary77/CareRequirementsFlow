@@ -144,6 +144,36 @@ const TEMPLATES = [
       { name: 'Guide provided', fields: 3 },
       { name: 'Key contacts', fields: 3 },
     ] },
+  // Other Documents' own pack (BBC SD09(2) Best Interest Decision Making
+  // Framework, applied to three separate decisions, plus two ad hoc
+  // reviews) — offered by "Record with CareBridge" alongside the
+  // Assessments pack above, since a recording links to a document from
+  // either source in that picker.
+  { id: 'best-interest-consent', name: 'Best Interest Decision Making - Consent to care', short: 'Best Interest · Consent to Care', created: '10/08/2026',
+    sections: [
+      { name: 'Decision context', fields: 5 },
+      { name: 'Best interests reached', fields: 4 },
+    ] },
+  { id: 'best-interest-cotsides', name: 'Best Interest Decision Making - Cot Sides', short: 'Best Interest · Cot Sides', created: '28/07/2026',
+    sections: [
+      { name: 'Decision context', fields: 5 },
+      { name: 'Best interests reached', fields: 4 },
+    ] },
+  { id: 'best-interest-medication', name: 'Best Interest Decision Making - Medication', short: 'Best Interest · Medication', created: '05/07/2026',
+    sections: [
+      { name: 'Decision context', fields: 5 },
+      { name: 'Best interests reached', fields: 4 },
+    ] },
+  { id: 'communication-chart', name: 'Communication Chart', short: 'Communication Chart', created: '01/05/2026',
+    sections: [
+      { name: 'Communication preferences', fields: 6 },
+      { name: 'Support strategies', fields: 5, target: 4 },
+    ] },
+  { id: 'waterlow', name: 'Waterlow Score Assessment', short: 'Waterlow Score', created: '01/12/2025',
+    sections: [
+      { name: 'Risk factors', fields: 8 },
+      { name: 'Score & plan', fields: 4 },
+    ] },
 ]
 
 // Which document to surface first, based on where the customer is in the cadence.
@@ -153,13 +183,35 @@ const templateById = (id) => TEMPLATES.find(t => t.id === id)
 
 const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 
-// Per-section capture at a given progress fraction (0→1). CareBridge fills up
-// to each section's target; sections with no target fill completely.
-const sectionStates = (doc, progress) => (doc?.sections || []).map(s => {
+// Reads ?customer=<id>&templates=<id,id,...> — the deep link a customer's
+// own Documents/Assessments picker (mobile/customer-documents) hands off
+// to, once the reviewer has chosen which documents this recording is for.
+// Parsed once via lazy useState init (not an effect) so a deep-linked visit
+// never flashes the Customer/Template steps before jumping to Consent.
+function parseDeepLink() {
+  const params = new URLSearchParams(window.location.search)
+  const customerId = params.get('customer')
+  const templateIds = (params.get('templates') || '').split(',').filter(Boolean)
+  if (!customerId || templateIds.length === 0) return null
+  const customer = CUSTOMERS.find(c => c.id === customerId)
+  const templates = templateIds.map(templateById).filter(Boolean)
+  if (!customer || templates.length === 0) return null
+  return { customer, templates }
+}
+
+// Per-section capture at a given progress fraction (0→1), across every
+// selected document (usually one, but a recording can cover several — see
+// parseDeepLink above). CareBridge fills up to each section's target;
+// sections with no target fill completely. A document's own internal
+// groups are kept (e.g. the Care & Support Plan's "Hospital passport" /
+// "Care plan" / "Assessments"); a flatter document with none falls back to
+// its own name as the group, so multiple documents still read as distinct
+// sections in the end-of-visit review rather than one undifferentiated list.
+const sectionStates = (docs, progress) => docs.flatMap(doc => (doc?.sections || []).map(s => {
   const target = s.target ?? s.fields
   const captured = Math.min(s.fields, Math.round(target * progress))
-  return { group: s.group || 'Sections', name: s.name, fields: s.fields, captured, complete: captured >= s.fields }
-})
+  return { group: s.group || doc?.short || doc?.name || 'Sections', name: s.name, fields: s.fields, captured, complete: captured >= s.fields }
+}))
 
 // Roll section states up into their groups, preserving order.
 const groupStates = (states) => {
@@ -179,11 +231,11 @@ const RECORD_RAMP = 24 // seconds to a full first-pass capture (simulated)
 
 // ─── Screen 1: choose customer ───────────────────────────────
 
-function CustomerScreen({ onPick }) {
+function CustomerScreen({ onPick, onBack }) {
   return (
     <div className="cb-screen">
       <StatusBar />
-      <AppHeader title="New Assessment" onBack={() => { window.location.href = '../account/' }} />
+      <AppHeader title="New Assessment" onBack={onBack} />
       <div className="cb-body">
         <div className="menu-section-label">Assessments due</div>
         <div className="cb-list">
@@ -275,7 +327,7 @@ function TemplateScreen({ customer, onBack, onPick }) {
 
 // ─── Screen 3: consent ───────────────────────────────────────
 
-function ConsentScreen({ customer, template, consent, setConsent, share, setShare, onBack, onStart }) {
+function ConsentScreen({ customer, template, docsLabel, consent, setConsent, share, setShare, onBack, onStart }) {
   const first = customer?.name.split(' ')[0] || 'the customer'
   const [micTest, setMicTest] = useState('idle') // idle | testing | ok
   // The screen stays mounted across a template switch (all steps render in a
@@ -289,7 +341,7 @@ function ConsentScreen({ customer, template, consent, setConsent, share, setShar
       <div className="cb-body cb-body-flush">
         <div className="cb-consent-intro">
           With consent, <strong>CareBridge</strong> records the conversation and fills
-          in the {template?.short || template?.name} as you talk — so you can focus on {first}, not paperwork.
+          in the {docsLabel} as you talk — so you can focus on {first}, not paperwork.
         </div>
 
         <div className="cb-consent-points">
@@ -348,7 +400,7 @@ function ConsentScreen({ customer, template, consent, setConsent, share, setShar
 
 // ─── Screen 4: recording — "set it down and ignore it" ───────
 
-function RecordScreen({ customer, template, seconds, states, onEnd, onLock }) {
+function RecordScreen({ customer, template, docsLabel, seconds, states, onEnd, onLock }) {
   const first = customer?.name.split(' ')[0] || 'the customer'
   const totalFields = sumFields(states, 'fields')
   const capturedFields = sumFields(states, 'captured')
@@ -357,7 +409,7 @@ function RecordScreen({ customer, template, seconds, states, onEnd, onLock }) {
     <div className="cb-screen cb-screen-record">
       <StatusBar />
       <AppHeader
-        title={template?.short || template?.name || 'Recording'}
+        title={docsLabel || 'Recording'}
         right={<button className="app-header-action" onClick={onLock} aria-label="Lock screen"><LockIcon /></button>}
       />
       <div className="cb-record-body">
@@ -372,7 +424,7 @@ function RecordScreen({ customer, template, seconds, states, onEnd, onLock }) {
 
         <div className="cb-capture">
           <div className="cb-capture-row">
-            <span>Filling the {template?.short}</span>
+            <span>Filling the {docsLabel}</span>
           </div>
           <div className="cb-capture-bar"><span style={{ width: `${pct}%` }} /></div>
         </div>
@@ -476,9 +528,18 @@ function ReviewScreen({ customer, template, seconds, states, onResume, onFinish 
 const STEPS = ['customer', 'template', 'consent', 'record', 'review']
 
 export default function App() {
-  const [step, setStep] = useState('customer')
-  const [customer, setCustomer] = useState(null)
-  const [template, setTemplate] = useState(null)
+  // Computed once — a deep link from customer-documents' "Record with
+  // CareBridge" picker (?customer=&templates=) preselects the customer and
+  // every chosen document and jumps straight to Consent, skipping the
+  // Customer/Template steps that only exist to make those two choices.
+  const [deepLink] = useState(parseDeepLink)
+  const [step, setStep] = useState(() => deepLink ? 'consent' : 'customer')
+  const [customer, setCustomer] = useState(() => deepLink?.customer ?? null)
+  const [template, setTemplate] = useState(() => deepLink?.templates[0] ?? null)
+  // Any documents selected beyond the primary `template` — same recording,
+  // drafting several documents from the one conversation (how CareBridge
+  // really works; the picker upstream allows multi-select for this reason).
+  const [extraTemplates, setExtraTemplates] = useState(() => deepLink?.templates.slice(1) ?? [])
   const [consent, setConsent] = useState(false)
   const [share, setShare] = useState(false)
   const [seconds, setSeconds] = useState(0)
@@ -495,13 +556,27 @@ export default function App() {
     return () => clearInterval(id)
   }, [step])
 
-  // CareBridge fills the document automatically as the conversation flows.
-  const recStates = sectionStates(template, Math.min(1, seconds / RECORD_RAMP))
-  const finalStates = sectionStates(template, 1)
+  // CareBridge fills every selected document automatically as the
+  // conversation flows.
+  const allTemplates = [template, ...extraTemplates].filter(Boolean)
+  const recStates = sectionStates(allTemplates, Math.min(1, seconds / RECORD_RAMP))
+  const finalStates = sectionStates(allTemplates, 1)
   const idx = STEPS.indexOf(step)
+  // What to call "the document(s)" in copy across Consent/Record/the finish
+  // overlay — the primary template's short name, plus a count when more
+  // than one was selected.
+  const docsLabel = allTemplates.length > 1
+    ? `${template?.short || template?.name} +${allTemplates.length - 1} more`
+    : (template?.short || template?.name)
+  // Where every exit from this flow (backing out via Customer's header
+  // arrow, or finishing via the "Done" overlay button) lands — a
+  // deep-linked visit came from customer-documents' own "Record and Draft
+  // with CareBridge" banner, so it should return there rather than to
+  // Account, which has no relation to how this recording began.
+  const entryPointHref = deepLink ? '../customer-documents/' : '../account/'
 
-  const pickCustomer = (c) => { setCustomer(c); setTemplate(null); setConsent(false); setShare(false); setSeconds(0); setStep('template') }
-  const pickTemplate = (t) => { setTemplate(t); setConsent(false); setShare(false); setSeconds(0); setStep('consent') }
+  const pickCustomer = (c) => { setCustomer(c); setTemplate(null); setExtraTemplates([]); setConsent(false); setShare(false); setSeconds(0); setStep('template') }
+  const pickTemplate = (t) => { setTemplate(t); setExtraTemplates([]); setConsent(false); setShare(false); setSeconds(0); setStep('consent') }
   const finish = () => { setOverlay('uploading'); setTimeout(() => setOverlay('done'), 1700) }
 
   return (
@@ -511,20 +586,25 @@ export default function App() {
         <div className={`screen-area page-slide ${entering ? 'slide-entering' : ''}`}>
           <div className="cb-track" style={{ width: `${STEPS.length * 100}%`, transform: `translateX(-${idx * (100 / STEPS.length)}%)` }}>
             <div className="cb-track-item" style={{ width: `${100 / STEPS.length}%` }}>
-              <CustomerScreen onPick={pickCustomer} />
+              <CustomerScreen onPick={pickCustomer} onBack={() => { window.location.href = entryPointHref }} />
             </div>
             <div className="cb-track-item" style={{ width: `${100 / STEPS.length}%` }}>
               <TemplateScreen customer={customer} onBack={() => setStep('customer')} onPick={pickTemplate} />
             </div>
             <div className="cb-track-item" style={{ width: `${100 / STEPS.length}%` }}>
               <ConsentScreen
-                customer={customer} template={template}
+                customer={customer} template={template} docsLabel={docsLabel}
                 consent={consent} setConsent={setConsent} share={share} setShare={setShare}
-                onBack={() => setStep('template')} onStart={() => setStep('record')}
+                // A deep-linked visit never went through Customer/Template
+                // (those steps only exist to make the choices the picker
+                // upstream already made) — so backing out of Consent should
+                // exit straight to the entry point, not reveal them.
+                onBack={() => { if (deepLink) { window.location.href = entryPointHref } else { setStep('template') } }}
+                onStart={() => setStep('record')}
               />
             </div>
             <div className="cb-track-item" style={{ width: `${100 / STEPS.length}%` }}>
-              <RecordScreen customer={customer} template={template} seconds={seconds} states={recStates} onEnd={() => { setLocked(false); setStep('review') }} onLock={() => setLocked(true)} />
+              <RecordScreen customer={customer} template={template} docsLabel={docsLabel} seconds={seconds} states={recStates} onEnd={() => { setLocked(false); setStep('review') }} onLock={() => setLocked(true)} />
             </div>
             <div className="cb-track-item" style={{ width: `${100 / STEPS.length}%` }}>
               <ReviewScreen customer={customer} template={template} seconds={seconds} states={finalStates} onResume={() => setStep('record')} onFinish={finish} />
@@ -550,10 +630,13 @@ export default function App() {
                     <div className="cb-success-icon"><CheckIcon /></div>
                     <div className="cb-overlay-title">Sent to PASS</div>
                     <div className="cb-overlay-text">
-                      CareBridge has drafted {customer?.name.split(' ')[0]}’s {template?.short || template?.name}.
+                      CareBridge has drafted {customer?.name.split(' ')[0]}’s {docsLabel}.
                       Write up the care plan, risk assessments and templates in PASS.
                     </div>
-                    <button className="round-btn primary-btn cb-full-btn" onClick={() => { window.location.href = '../account/' }}>
+                    <button
+                      className="round-btn primary-btn cb-full-btn"
+                      onClick={() => { window.location.href = entryPointHref }}
+                    >
                       Done
                     </button>
                   </>

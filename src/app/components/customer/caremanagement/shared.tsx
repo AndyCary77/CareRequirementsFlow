@@ -403,14 +403,21 @@ export function CarePlanDraftFlow() {
 
   if (draftStep !== null) {
     return (
-      <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 shadow-sm">
-        <div className="flex items-center gap-2.5 mb-4">
-          <Sparkles className="w-4 h-4 text-[rgb(154,38,214)] flex-shrink-0" />
-          <p className="text-sm font-semibold text-purple-900">
-            Drafting the care plan from <DraftSourcesNote sources={availableDraft.sources} kind={sourceKind} />…
+      <>
+        <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 mb-2">
+          <Info className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+          <p className="text-sm text-blue-800">
+            You can leave this page while the draft runs — the process will continue in the background.
           </p>
         </div>
-        <div className="flex items-start px-1">
+        <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3 shadow-sm">
+          <div className="flex items-center gap-2.5 mb-4">
+            <Sparkles className="w-4 h-4 text-[rgb(154,38,214)] flex-shrink-0" />
+            <p className="text-sm font-semibold text-purple-900">
+              Drafting the care plan from <DraftSourcesNote sources={availableDraft.sources} kind={sourceKind} />…
+            </p>
+          </div>
+          <div className="flex items-start px-1">
           {CARE_PLAN_DRAFT_STEPS.map((step, i) => {
             const state = i < draftStep ? 'done' : i === draftStep ? 'active' : 'pending';
             return (
@@ -443,6 +450,7 @@ export function CarePlanDraftFlow() {
           })}
         </div>
       </div>
+    </>
     );
   }
 
@@ -514,12 +522,10 @@ function CarePlanDraftSourcePicker({
   const customer = useCustomer();
   const { assessments, documents } = getCompletedDocuments(customer.id);
   const [tab, setTab] = useState<'assessments' | 'documents'>('assessments');
-  // Seeded with every completed assessment pre-checked — Assessments is the
-  // default source, so opening the picker should already reflect "draft from
-  // all of these" rather than making the reviewer re-select what's obviously
-  // relevant. Documents starts with nothing checked, since including one is
-  // the exception rather than the rule.
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set(assessments.map(d => d.id)));
+  // Previously this was seeded with every completed assessment pre-checked.
+  // Change: start with nothing selected so the reviewer explicitly chooses
+  // which completed assessments/documents to draft from.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const toggle = (id: string) =>
     setSelectedIds(prev => {
       const next = new Set(prev);
@@ -625,10 +631,26 @@ export function OutcomeBadge({ title }: { title: string }) {
  * accepted (reviewed flips to true, see useCareData).
  */
 export function ActiveBadge({ status, reviewed }: { status: 'active' | 'inactive'; reviewed?: boolean }) {
+  const { planPublished } = useCareManagement();
   if (reviewed === false) {
     return (
       <span className="text-xs font-semibold px-2 py-0.5 rounded uppercase border border-amber-300 bg-amber-100 text-amber-800">
         Draft
+      </span>
+    );
+  }
+  // If the overall care plan is still a CareBridge draft (not published),
+  // show an "Accepted" badge for items that have been accepted rather
+  // than the normal "Active" text — makes acceptance clearer while the
+  // plan as a whole is still pending review.
+  if (!planPublished && status === 'active') {
+    return (
+      <span
+        className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded uppercase border"
+        style={{ backgroundColor: '#D4EBC3', color: '#1B5E20', borderColor: '#2E7D32' }}
+      >
+        <TickSolidIcon className="w-3.5 h-3.5 text-[rgb(27,94,32)]" />
+        Accepted
       </span>
     );
   }

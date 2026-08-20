@@ -28,7 +28,7 @@ function MedicationChips({ details }: { details: NonNullable<CareTask['medicatio
 
 function TaskCard({ task, onSelect }: { task: CareTask; onSelect: () => void }) {
   const { OUTCOMES, VISITS } = useCareData();
-  const { accept, discard } = useCareManagement();
+  const { accept, discard, planPublished } = useCareManagement();
   const outcomes = OUTCOMES.filter(o => task.outcomeIds.includes(o.id));
   const visits = VISITS.filter(v => task.visitIds.includes(v.id));
   const { bg, text, border, circleBg, Icon } = CATEGORY_CONFIG[task.category];
@@ -38,7 +38,7 @@ function TaskCard({ task, onSelect }: { task: CareTask; onSelect: () => void }) 
     <div
       onClick={onSelect}
       className={`bg-white rounded-lg border overflow-hidden cursor-pointer hover:shadow-md transition-all group ${
-        pending ? 'border-amber-300 hover:border-amber-400' : 'border-gray-200 hover:border-purple-300'
+        pending ? 'border-amber-300 hover:border-amber-400' : (task.reviewed && !planPublished ? 'border-green-600 hover:border-green-700' : 'border-gray-200 hover:border-purple-300')
       }`}
     >
       <div className={`flex items-center justify-between gap-3 px-5 py-3 border-b ${bg} ${border}`}>

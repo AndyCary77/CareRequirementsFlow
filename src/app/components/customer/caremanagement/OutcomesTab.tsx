@@ -8,7 +8,7 @@ import { TaskBadge, VisitBadge, ActiveBadge, StatusToggle, EmptyTab, inputClass,
 
 function OutcomeCard({ outcome, onSelect }: { outcome: Outcome; onSelect: () => void }) {
   const { TASKS, VISITS } = useCareData();
-  const { accept, discard } = useCareManagement();
+  const { accept, discard, planPublished } = useCareManagement();
   const tasks = TASKS.filter(t => outcome.taskIds.includes(t.id));
   const visits = VISITS.filter(v => outcome.visitIds.includes(v.id));
   const pending = outcome.reviewed === false;
@@ -20,11 +20,11 @@ function OutcomeCard({ outcome, onSelect }: { outcome: Outcome; onSelect: () => 
     <div
       onClick={onSelect}
       className={`bg-white rounded-lg border overflow-hidden cursor-pointer hover:shadow-md transition-all group ${
-        pending ? 'border-amber-300 hover:border-amber-400' : 'border-gray-200 hover:border-purple-300'
+        pending ? 'border-amber-300 hover:border-amber-400' : (outcome.reviewed && !planPublished ? 'border-green-600 hover:border-green-700' : 'border-gray-200 hover:border-purple-300')
       }`}
     >
       <div className="flex items-center justify-between gap-3 px-5 py-3 border-b" style={{ backgroundColor: '#feefdc', borderColor: '#fcd9a8' }}>
-        <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
           <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#fcdfb0' }}>
             <StarSolidIcon className="w-5 h-5 text-amber-700" />
           </div>

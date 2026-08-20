@@ -24,10 +24,11 @@ const SCREENS = [
       // Edith's is a genuinely partial assessment with fields still
       // outstanding, so hers is the one that actually demos the draft badge.
       { label: 'Assessment Draft — Edith Caldwell', to: '/customers/edith-caldwell/documents/care-plan' },
+        { label: 'Care Management — Create Draft from Assessments — Vera Bramwell', to: '/customers/vera-bramwell/caremanagement' },
       // The newer Care Management draft flow — Outcomes/Tasks drafted from
       // the same initial assessment, reviewed per-record with Accept/Discard,
       // rather than the single free-text document above.
-      { label: 'Care Management Draft — Edith Caldwell', to: '/customers/edith-caldwell/caremanagement' },
+      { label: 'Care Management — Drafted State — Edith Caldwell', to: '/customers/edith-caldwell/caremanagement' },
       { label: 'What Is Important To Me — Edith Caldwell (before a recording is linked)', to: '/customers/edith-caldwell/documents/wiitm' },
       // ?recording= deep-links straight into the drafted state, same as the
       // "Linked to" click-through from the recording page itself.

@@ -10,7 +10,7 @@ type Tab = 'outcomes' | 'tasks' | 'visits' | 'caregroups';
  * the wait reads as work happening on the page you're already looking at.
  */
 export const CARE_PLAN_DRAFT_STEPS = [
-  { label: 'Reading the recording', ms: 1300 },
+  { label: 'Reading the documents', ms: 1300 },
   { label: 'Drafting outcomes', ms: 2000 },
   { label: 'Drafting tasks', ms: 2000 },
 ];
@@ -81,6 +81,16 @@ interface CareManagementContextType {
   /** True once the run has finished — drives the success message. */
   draftComplete: boolean;
   startCarePlanDraft: () => void;
+  /**
+   * The completed documents (Assessments and/or Documents tab) the reviewer
+   * picked in CarePlanDraftSourcePicker to draft this run from — set right
+   * before `startCarePlanDraft` is called. `useCareData` prefers this over
+   * each record's own static `draftSource` for the aggregate "Drafted from
+   * X" shown in the banners, so what the banner says matches what was
+   * actually picked. Null until a draft has been run at least once.
+   */
+  draftSourceDocuments: string[] | null;
+  setDraftSourceDocuments: (titles: string[]) => void;
   /** Whether the drafted outcomes/tasks have been revealed yet, mid-run. */
   draftedOutcomesVisible: boolean;
   draftedTasksVisible: boolean;
@@ -125,6 +135,8 @@ const CareManagementContext = createContext<CareManagementContextType>({
   draftStep: null,
   draftComplete: false,
   startCarePlanDraft: () => {},
+  draftSourceDocuments: null,
+  setDraftSourceDocuments: () => {},
   draftedOutcomesVisible: false,
   draftedTasksVisible: false,
   draftNoticeDismissed: false,
@@ -147,6 +159,7 @@ export function CareManagementProvider({ children }: { children: React.ReactNode
   const [draftStep, setDraftStep] = useState<number | null>(null);
   const [draftComplete, setDraftComplete] = useState(false);
   const [draftNoticeDismissed, setDraftNoticeDismissed] = useState(false);
+  const [draftSourceDocuments, setDraftSourceDocuments] = useState<string[] | null>(null);
   // Seeded from the customer's existing status — Arthur already has a live
   // plan, Edith/Vera's only exists as a CareBridge draft until Publish is
   // clicked. Read once on mount, same as every other piece of session state
@@ -214,14 +227,15 @@ export function CareManagementProvider({ children }: { children: React.ReactNode
     () => ({
       activeTab, setActiveTab, backFn, registerBack, clearBack, addFn, registerAdd, clearAdd,
       deleteFn, registerDelete, clearDelete, acceptedIds, accept, discardedIds, discard, dirty, setDirty,
-      draftStep, draftComplete, startCarePlanDraft, draftedOutcomesVisible, draftedTasksVisible,
+      draftStep, draftComplete, startCarePlanDraft, draftSourceDocuments, setDraftSourceDocuments,
+      draftedOutcomesVisible, draftedTasksVisible,
       draftNoticeDismissed, dismissDraftNotice,
       planPublished, publishPlan, planPublishedNoticeDismissed, dismissPlanPublishedNotice,
     }),
     [
       activeTab, backFn, registerBack, clearBack, addFn, registerAdd, clearAdd,
       deleteFn, registerDelete, clearDelete, acceptedIds, accept, discardedIds, discard, dirty,
-      draftStep, draftComplete, startCarePlanDraft, draftedOutcomesVisible, draftedTasksVisible,
+      draftStep, draftComplete, startCarePlanDraft, draftSourceDocuments, draftedOutcomesVisible, draftedTasksVisible,
       draftNoticeDismissed, dismissDraftNotice,
       planPublished, publishPlan, planPublishedNoticeDismissed, dismissPlanPublishedNotice,
     ],

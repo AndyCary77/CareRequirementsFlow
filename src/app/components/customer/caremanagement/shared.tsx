@@ -1,11 +1,13 @@
-import { Fragment, useRef } from 'react';
+import { Fragment, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ChevronRight, Eye, Check, CheckCircle2, Info, Loader2, Send, Sparkles, X, Trash2 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '../../ui/tooltip';
 import { Button } from '../../buttons/Button';
+import { Checkbox } from '../../ui/checkbox';
 import { useCareManagement, CARE_PLAN_DRAFT_STEPS } from './CareManagementContext';
 import { useCareData } from './useCareData';
 import { useCustomer } from '../../../data/CustomerContext';
+import { getCompletedDocuments } from '../../../data/mock-documents';
 import { StarSolidIcon, CalendarSolidIcon, TickSolidIcon, PlusSolidIcon, NutritionSolidIcon, HydrateSolidIcon } from '../../icons/CarePlanIcons';
 import passgeniusPurpleUrl from '../../icons/passgenius-purple.svg';
 import { triggerPassGeniusHover } from '../../icons/passgenius';
@@ -13,6 +15,9 @@ import {
   AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
   AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel,
 } from '../../ui/alert-dialog';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '../../ui/dialog';
 import type { TaskCategory } from './types';
 
 export const inputClass = 'w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-[rgb(154,38,214)] focus:ring-1 focus:ring-[rgb(154,38,214)]';
@@ -176,9 +181,10 @@ export function DraftActionBar({
  * (which stops being readable past two or three) or silently only naming
  * the first.
  */
-function DraftSourcesNote({ sources }: { sources: string[] }) {
+function DraftSourcesNote({ sources, kind = 'recording' }: { sources: string[]; kind?: 'recording' | 'document' }) {
   if (sources.length === 0) return null;
   if (sources.length === 1) return <strong>{sources[0]}</strong>;
+  const kindLabel = kind === 'document' ? 'documents' : 'recordings';
 
   return (
     <Tooltip>
@@ -186,7 +192,7 @@ function DraftSourcesNote({ sources }: { sources: string[] }) {
         <span
           role="button"
           tabIndex={0}
-          aria-label={`Show the ${sources.length} recordings this was drafted from`}
+          aria-label={`Show the ${sources.length} ${kindLabel} this was drafted from`}
           // CareBridge's own purple rather than colour-matched to whichever
           // banner it sits in (also purple for the offer/running state, but
           // deliberately purple even against the green success banner — a
@@ -203,7 +209,7 @@ function DraftSourcesNote({ sources }: { sources: string[] }) {
           // hovering the count itself is enough.
           className="inline-flex items-center gap-1 align-middle leading-none rounded-full border border-purple-200 bg-purple-100 px-2 py-0.5 text-sm font-semibold text-purple-900 cursor-default outline-none hover:bg-purple-200 focus-visible:ring-2 focus-visible:ring-[rgb(154,38,214)]/50"
         >
-          {sources.length} recordings
+          {sources.length} {kindLabel}
           <Info className="w-3.5 h-3.5 text-[rgb(154,38,214)]" />
         </span>
       </TooltipTrigger>
@@ -234,7 +240,14 @@ export function CarePlanDraftBanner({
 }) {
   const customer = useCustomer();
   const navigate = useNavigate();
-  const { planPublished, publishPlan, planPublishedNoticeDismissed, dismissPlanPublishedNotice } = useCareManagement();
+  const {
+    planPublished, publishPlan, planPublishedNoticeDismissed, dismissPlanPublishedNotice, draftSourceDocuments,
+  } = useCareManagement();
+  // Whether `sources` names completed documents (picked in
+  // CarePlanDraftSourcePicker) rather than recordings — changes the bottom
+  // bar's link wording and where it points, since a document-drafted plan
+  // has nothing recorded to view.
+  const draftedFromDocuments = !!draftSourceDocuments;
   // Hover-forwarded into the embedded PASSgenius mark, same trick as the
   // Documents tab's own CareBridge Draft banner (see triggerPassGeniusHover).
   const passgeniusRef = useRef<HTMLObjectElement>(null);
@@ -304,7 +317,7 @@ export function CarePlanDraftBanner({
             )}
           </p>
           <p className="text-sm text-purple-800 mt-0.5">
-            Drafted from <DraftSourcesNote sources={sources!} /> —{' '}
+            Drafted from <DraftSourcesNote sources={sources!} kind={draftedFromDocuments ? 'document' : 'recording'} /> —{' '}
             {total > 0
               ? 'nothing here is part of the live care plan until you accept it.'
               : "everything's been reviewed — publish to make this the customer's real care plan."}
@@ -328,10 +341,10 @@ export function CarePlanDraftBanner({
           </p>
           <button
             type="button"
-            onClick={() => navigate(`/customers/${customer.id}/documents?tab=carebridge`)}
+            onClick={() => navigate(`/customers/${customer.id}/documents?tab=${draftedFromDocuments ? 'assessments' : 'carebridge'}`)}
             className="flex items-center gap-1 text-sm font-medium text-[rgb(154,38,214)] hover:underline cursor-pointer flex-shrink-0"
           >
-            View recording{sources!.length > 1 ? 's' : ''}
+            {draftedFromDocuments ? `View document${sources!.length > 1 ? 's' : ''}` : `View recording${sources!.length > 1 ? 's' : ''}`}
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -372,8 +385,19 @@ export function CarePlanDraftBanner({
 export function CarePlanDraftFlow() {
   const customer = useCustomer();
   const { availableDraft } = useCareData();
-  const { draftStep, draftComplete, startCarePlanDraft, draftNoticeDismissed, dismissDraftNotice } = useCareManagement();
+  const {
+    draftStep, draftComplete, startCarePlanDraft, draftSourceDocuments, setDraftSourceDocuments,
+    draftNoticeDismissed, dismissDraftNotice,
+  } = useCareManagement();
   const firstName = customer.fullName.split(' ').slice(1, -1).join(' ') || customer.fullName;
+  const sourceKind = draftSourceDocuments ? 'document' : 'recording';
+  // Confirming a selection in the picker sets the sources this run will be
+  // attributed to, then starts the same stepper as before.
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const confirmSources = (titles: string[]) => {
+    setDraftSourceDocuments(titles);
+    startCarePlanDraft();
+  };
 
   if (!availableDraft) return null;
 
@@ -383,7 +407,7 @@ export function CarePlanDraftFlow() {
         <div className="flex items-center gap-2.5 mb-4">
           <Sparkles className="w-4 h-4 text-[rgb(154,38,214)] flex-shrink-0" />
           <p className="text-sm font-semibold text-purple-900">
-            Drafting the care plan from <DraftSourcesNote sources={availableDraft.sources} />…
+            Drafting the care plan from <DraftSourcesNote sources={availableDraft.sources} kind={sourceKind} />…
           </p>
         </div>
         <div className="flex items-start px-1">
@@ -433,7 +457,7 @@ export function CarePlanDraftFlow() {
           <p className="text-base font-semibold text-[rgb(12,77,12)]">Care plan drafted</p>
           <p className="text-sm text-[rgb(16,100,16)] mt-0.5">
             {availableDraft.outcomes} outcomes and {availableDraft.tasks} tasks drafted from{' '}
-            <DraftSourcesNote sources={availableDraft.sources} />, each linked to the visits they belong to. Review
+            <DraftSourcesNote sources={availableDraft.sources} kind={sourceKind} />, each linked to the visits they belong to. Review
             and accept them one by one — nothing is part of the live plan until you do.
           </p>
         </div>
@@ -450,24 +474,117 @@ export function CarePlanDraftFlow() {
   }
 
   return (
-    <div className="rounded-lg border border-purple-200 shadow-sm overflow-hidden">
-      <div className="flex items-start gap-3 bg-white px-4 py-3">
-        <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
-          <Sparkles className="w-4 h-4 text-[rgb(154,38,214)]" />
+    <>
+      <div className="rounded-lg border border-purple-200 shadow-sm overflow-hidden">
+        <div className="flex items-start gap-3 bg-white px-4 py-3">
+          <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
+            <Sparkles className="w-4 h-4 text-[rgb(154,38,214)]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-base font-semibold text-purple-900">Draft this care plan with CareBridge</p>
+            <p className="text-sm text-purple-800 mt-0.5">
+              Select completed assessments and documents to draft outcomes and tasks for this care plan. You can review and edit the drafts before accepting them.
+            </p>
+          </div>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-base font-semibold text-purple-900">Draft this care plan from CareBridge</p>
-          <p className="text-sm text-purple-800 mt-0.5">
-            {firstName}'s assessment{availableDraft.sources.length > 1 ? 's were' : ' was'} recorded with CareBridge.
-            Draft the outcomes and tasks from <DraftSourcesNote sources={availableDraft.sources} /> and they'll come
-            in here as drafts for you to review, edit and accept — or build the plan by hand instead.
-          </p>
+        <div className="flex items-center gap-3 bg-purple-50 border-t border-purple-200 px-4 py-3">
+          <Button icon={<Sparkles className="w-4 h-4" />} onClick={() => setPickerOpen(true)}>Draft care plan</Button>
         </div>
       </div>
-      <div className="flex items-center gap-3 bg-purple-50 border-t border-purple-200 px-4 py-3">
-        <Button icon={<Sparkles className="w-4 h-4" />} onClick={startCarePlanDraft}>Draft care plan</Button>
-      </div>
-    </div>
+      <CarePlanDraftSourcePicker open={pickerOpen} onOpenChange={setPickerOpen} onConfirm={confirmSources} />
+    </>
+  );
+}
+
+/**
+ * Lets the reviewer choose which of the customer's completed documents
+ * CareBridge should draft this run from — Assessments (the standard onboarding
+ * pack) is the default source, but Documents (ad hoc reviews/audits) can also
+ * contribute if one of those is what's actually relevant. Only documents
+ * marked complete are offered; a document still outstanding has nothing
+ * settled yet to draft from.
+ */
+function CarePlanDraftSourcePicker({
+  open, onOpenChange, onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: (titles: string[]) => void;
+}) {
+  const customer = useCustomer();
+  const { assessments, documents } = getCompletedDocuments(customer.id);
+  const [tab, setTab] = useState<'assessments' | 'documents'>('assessments');
+  // Seeded with every completed assessment pre-checked — Assessments is the
+  // default source, so opening the picker should already reflect "draft from
+  // all of these" rather than making the reviewer re-select what's obviously
+  // relevant. Documents starts with nothing checked, since including one is
+  // the exception rather than the rule.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set(assessments.map(d => d.id)));
+  const toggle = (id: string) =>
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  const activeList = tab === 'assessments' ? assessments : documents;
+  const selectedTitles = [...assessments, ...documents].filter(d => selectedIds.has(d.id)).map(d => d.title);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Draft care plan from completed documents</DialogTitle>
+          <DialogDescription>
+            Choose which completed documents CareBridge should draft the outcomes and tasks from.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+          {(['assessments', 'documents'] as const).map(t => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTab(t)}
+              className={`flex-1 py-2 text-sm font-medium capitalize transition-colors cursor-pointer ${
+                tab === t ? 'bg-[rgb(154,38,214)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              {t} ({t === 'assessments' ? assessments.length : documents.length})
+            </button>
+          ))}
+        </div>
+
+        <div className="space-y-2 max-h-72 overflow-y-auto">
+          {activeList.length === 0 ? (
+            <p className="text-sm text-gray-500 py-4 text-center">
+              No completed {tab} yet — nothing here is finished enough to draft from.
+            </p>
+          ) : (
+            activeList.map(doc => (
+              <label
+                key={doc.id}
+                className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer"
+              >
+                <Checkbox checked={selectedIds.has(doc.id)} onCheckedChange={() => toggle(doc.id)} />
+                <span className="text-sm text-gray-900">{doc.title}</span>
+              </label>
+            ))
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="tertiary" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button
+            icon={<Sparkles className="w-4 h-4" />}
+            disabled={selectedTitles.length === 0}
+            onClick={() => { onConfirm(selectedTitles); onOpenChange(false); }}
+          >
+            Draft care plan
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

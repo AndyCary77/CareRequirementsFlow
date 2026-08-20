@@ -173,13 +173,22 @@ export function CarePlanDocumentContent() {
     pendingReview, pendingCount, fileInputRef, passgeniusRef, handleUpload, handleUnlink, setDirty, setPublished,
   } = useCarePlanDocument();
 
+  // Vera's Care and Support Plan is being treated as an already-completed
+  // document (drafted from her completed assessment paperwork, not a
+  // recording — see the project note on her Assessments list entry), so it
+  // shows as a real, finished document rather than a CareBridge draft: no
+  // draft/published banner above it at all, and (see asCompletedDocument /
+  // asCompletedSections on her 'initial' recording) no per-field pending
+  // highlighting, Check transcript, or Accept controls in the content below.
+  const isCompletedDocument = customer.id === 'vera-bramwell';
+
   return (
     // Matches the Documents/Assessments list and CustomerDetailsPage's two-column width.
     <div className="flex flex-col gap-4 max-w-[1280px] mx-auto">
       {/* Hidden regardless of which menu item asked for it — one input, reused. */}
       <input ref={fileInputRef} type="file" accept="audio/*" className="hidden" onChange={handleUpload} />
 
-      {published ? (
+      {isCompletedDocument ? null : published ? (
         /* Publish is one-way — once the draft becomes a saved document, the
            review/relink workflow below no longer applies. */
         <div className="flex items-start gap-3 rounded-lg border border-[rgb(178,224,178)] bg-[rgb(232,247,232)] px-4 py-3">

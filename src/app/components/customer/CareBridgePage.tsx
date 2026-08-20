@@ -1012,6 +1012,28 @@ const VERA_REVIEW_TASK_SUGGESTION: TaskSuggestion = {
   text: "Check Vera isn't dizzy or unsteady when she stands up, since starting ramipril for her blood pressure — report any dizziness to the office given her falls risk.",
 };
 
+// Strip the CareBridge/AI-drafted framing from a recording's Care Plan
+// content — used for Vera's Initial Assessment, whose "Customer Care and
+// Support Plan" is being treated as an already-completed document (drafted
+// from her completed assessment paperwork, not this recording) rather than
+// a pending AI draft (see the note on her Assessments list entry).
+//
+// A captured form field just needs `reviewed: true` — the pending row (Check
+// transcript/Accept) is gated on `reviewed === false` specifically, so
+// flipping it to true drops that row with nothing else to change. A prose
+// section is gated differently (`reviewed !== undefined` shows the row
+// regardless of true/false, with a static "Accepted" label instead of
+// "Accept"), so it needs `reviewed` cleared to undefined instead to lose the
+// row entirely. Fields/sections with nothing captured are left exactly as
+// they were — this isn't inventing content, just dropping the "AI drafted
+// this" framing from what's already there.
+function asCompletedDocument(fields: FormField[]): FormField[] {
+  return fields.map(f => (f.reviewed === false ? { ...f, reviewed: true } : f));
+}
+function asCompletedSections(sections: AssessmentSection[]): AssessmentSection[] {
+  return sections.map(s => (s.reviewed !== undefined ? { ...s, reviewed: undefined } : s));
+}
+
 const RECORDINGS: Record<string, Recording[]> = {
   'arthur-barrington': [
     {
@@ -1111,10 +1133,13 @@ const RECORDINGS: Record<string, Recording[]> = {
       transcript: veraise([...EDITH_TRANSCRIPT, ...EDITH_CONSENT_TRANSCRIPT, ...EDITH_RECEIPT_TRANSCRIPT, ...EDITH_PRIVACY_TRANSCRIPT, ...EDITH_TERMS_TRANSCRIPT, ...EDITH_GUIDE_TRANSCRIPT]),
       focusDocumentName: 'Customer Care and Support Plan',
       isCarePlanFocus: true,
-      focusSections: veraise(EDITH_SECTIONS),
+      // Completed (see asCompletedSections/asCompletedDocument) — her Care
+      // and Support Plan reads as an already-finished document rather than a
+      // pending CareBridge draft, per the note on her Assessments list entry.
+      focusSections: asCompletedSections(veraise(EDITH_SECTIONS)),
       focusOutcomes: veraise(EDITH_OUTCOMES),
       focusTasks: veraise(EDITH_TASKS),
-      formSections: { 'personal-details': veraise(EDITH_PERSONAL_DETAILS) },
+      formSections: { 'personal-details': asCompletedDocument(veraise(EDITH_PERSONAL_DETAILS)) },
       secondary: [
         { id: 'consent-care', name: 'Consent to Care', sections: veraise(EDITH_CONSENT_SECTIONS) },
         { id: 'confirm-receipt', name: 'Confirmation of Receipt', sections: veraise(EDITH_RECEIPT_SECTIONS) },

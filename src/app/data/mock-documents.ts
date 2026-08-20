@@ -173,4 +173,46 @@ export const ASSESSMENT_TEMPLATES: Record<string, Document[]> = {
       status: (doc.title === 'Consent to Care' || doc.title === 'Privacy Policy' ? 'success' : 'danger') as const,
     })),
   ],
+  // Same shape as Edith's for the rest of the pack — same mix of signed vs
+  // outstanding, since nothing about which forms are signed is specific to
+  // either of them. The Care and Support Plan and What Is Important To Me
+  // both diverge deliberately: complete rather than draft/incomplete, since
+  // Vera's flow is being built around drafting the care plan from her
+  // completed assessment documents instead of from a CareBridge recording
+  // (see project notes) — documents still mid-draft wouldn't make sense as
+  // that flow's source.
+  'vera-bramwell': [
+    {
+      ...STANDARD_ASSESSMENT_PACK[0],
+      status: 'success',
+      title: 'Customer Care and Support Plan',
+      to: '/customers/vera-bramwell/documents/care-plan',
+    },
+    {
+      id: 'd-wiitm',
+      status: 'success',
+      title: 'What Is Important To Me',
+      createdDate: '14/05/2026',
+      category: 'Other',
+      to: '/customers/vera-bramwell/documents/wiitm',
+    },
+    ...STANDARD_ASSESSMENT_PACK.slice(1).map(doc => ({
+      ...doc,
+      status: (doc.title === 'Consent to Care' || doc.title === 'Privacy Policy' ? 'success' : 'danger') as const,
+    })),
+  ],
 };
+
+/**
+ * A customer's completed (status: 'success') documents, split by which tab
+ * they live on — powers the "Draft care plan from completed documents" flow
+ * in Care Management (see CarePlanDraftSourcePicker in
+ * caremanagement/shared.tsx): Assessments is the default source, Documents
+ * is there to also draw from if the reviewer wants to include one.
+ */
+export function getCompletedDocuments(customerId: string): { assessments: Document[]; documents: Document[] } {
+  return {
+    assessments: (ASSESSMENT_TEMPLATES[customerId] ?? []).filter(d => d.status === 'success'),
+    documents: (CUSTOMER_DOCUMENTS[customerId] ?? []).filter(d => d.status === 'success'),
+  };
+}

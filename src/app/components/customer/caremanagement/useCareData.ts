@@ -1,9 +1,16 @@
 import { useMemo } from 'react';
 import { useCustomer } from '../../../data/CustomerContext';
+import { getCompletedDocuments } from '../../../data/mock-documents';
 import { CARE_DATA, CARE_PLAN_DRAFTS } from './types';
 import { useCareManagement } from './CareManagementContext';
 
 const EMPTY = { tasks: [], outcomes: [], visits: [] };
+
+// "It makes sense to do this after enough assessments have been completed" —
+// drafting from one lone signed form isn't really enough to summarise a
+// plan from, so the offer only appears once there's a reasonable amount of
+// completed assessment paperwork to draw on.
+const MIN_COMPLETED_ASSESSMENTS_FOR_DRAFT = 2;
 
 /** Distinct `draftSource` values across a set of records, in first-seen order. */
 function dedupeSources(items: { draftSource?: string }[]): string[] {
@@ -31,12 +38,13 @@ function dedupeSources(items: { draftSource?: string }[]): string[] {
  */
 export function useCareData() {
   const customer = useCustomer();
-  const { acceptedIds, discardedIds, draftedOutcomesVisible, draftedTasksVisible } = useCareManagement();
+  const { acceptedIds, discardedIds, draftedOutcomesVisible, draftedTasksVisible, draftSourceDocuments } = useCareManagement();
   const data = CARE_DATA[customer.id] ?? EMPTY;
   // What CareBridge would draft from this customer's recordings, if anything.
   // It only joins the lists as the "Draft care plan" run reveals it, step by
   // step — before that the plan is genuinely empty.
   const draft = CARE_PLAN_DRAFTS[customer.id];
+  const completedAssessments = getCompletedDocuments(customer.id).assessments;
 
   return useMemo(() => {
     const applyAccepted = <T extends { id: string; reviewed?: boolean }>(items: T[]): T[] =>
@@ -65,22 +73,31 @@ export function useCareData() {
         tasks: tasks.filter(t => t.reviewed === false).length,
       },
       /**
-       * The recording(s) these drafts came from, if any are present —
-       * deduped, in first-seen order. A plan can be built up from more than
-       * one recording (an initial assessment plus a later review, say), each
-       * tagging the records it drafted with its own `draftSource`, so this is
-       * a list rather than a single string.
+       * The document(s)/recording(s) these drafts came from, if any are
+       * present — deduped, in first-seen order. Prefers the documents the
+       * reviewer actually picked in CarePlanDraftSourcePicker when there is
+       * a picked set (so the banner says what was really chosen, for this
+       * whole run at once — the picker doesn't do fine-grained per-field
+       * sourcing), falling back to each record's own static `draftSource`
+       * for a plan drafted the older, recording-based way (e.g. Edith's).
        */
-      draftSources: dedupeSources([...outcomes, ...tasks]),
+      draftSources: draftSourceDocuments ?? dedupeSources([...outcomes, ...tasks]),
       /**
-       * A care plan CareBridge could draft from this customer's recordings
-       * that nobody has drafted yet — drives the "Draft care plan" offer on
-       * the Outcomes/Tasks tabs. Null once the plan has content of its own.
+       * A care plan CareBridge could draft from this customer's completed
+       * assessment documents that nobody has drafted yet — drives the
+       * "Draft care plan" offer on the Outcomes/Tasks tabs. Null once the
+       * plan has content of its own, or until enough assessments are
+       * actually complete to draft anything meaningful from.
        */
       availableDraft:
         draft && data.outcomes.length === 0 && data.tasks.length === 0
-          ? { sources: dedupeSources([...draft.outcomes, ...draft.tasks]), outcomes: draft.outcomes.length, tasks: draft.tasks.length }
+          && completedAssessments.length >= MIN_COMPLETED_ASSESSMENTS_FOR_DRAFT
+          ? {
+              sources: draftSourceDocuments ?? dedupeSources([...draft.outcomes, ...draft.tasks]),
+              outcomes: draft.outcomes.length,
+              tasks: draft.tasks.length,
+            }
           : null,
     };
-  }, [data, draft, draftedOutcomesVisible, draftedTasksVisible, acceptedIds, discardedIds]);
+  }, [data, draft, completedAssessments, draftedOutcomesVisible, draftedTasksVisible, draftSourceDocuments, acceptedIds, discardedIds]);
 }

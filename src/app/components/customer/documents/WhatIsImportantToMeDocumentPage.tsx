@@ -14,7 +14,7 @@ import { useCustomer } from '../../../data/CustomerContext';
 import type { CustomerProfile } from '../../../data/customers';
 import { FormFieldsView, resolveRecording, resolveRecordings, type FormField, type Recording } from '../CareBridgePage';
 import { DocumentTabs } from './DocumentTabs';
-import { WIITM_FIELDS_BLANK, WIITM_FIELDS_DRAFT, WIITM_GROUPS } from './whatIsImportantToMeData';
+import { WIITM_FIELDS_BLANK, WIITM_FIELDS_DRAFT, WIITM_FIELDS_COMPLETE, WIITM_GROUPS } from './whatIsImportantToMeData';
 import { useScrolled } from '../../../hooks/useScrolled';
 import passgeniusPurpleUrl from '../../icons/passgenius-purple.svg';
 import { triggerPassGeniusHover } from '../../icons/passgenius';
@@ -103,8 +103,14 @@ export function WiitmDocumentProvider({ children }: { children: React.ReactNode 
   // recording that generated it, rather than the usual blank starting state.
   const [searchParams] = useSearchParams();
   const linkedRecordingId = searchParams.get('recording');
+  // Vera's WIITM shows as an already-completed document — filled in, but
+  // never linked to a recording, so there's no CareBridge draft/review
+  // framing to bypass (see isCompletedDocument in WiitmDocumentContent).
+  const isCompletedDocument = customer.id === 'vera-bramwell';
   const [linkedSource, setLinkedSource] = useState<LinkedSource>(linkedRecordingId ? { type: 'recording', id: linkedRecordingId } : null);
-  const [fields, setFields] = useState<FormField[]>(linkedRecordingId ? WIITM_FIELDS_DRAFT : WIITM_FIELDS_BLANK);
+  const [fields, setFields] = useState<FormField[]>(
+    isCompletedDocument ? WIITM_FIELDS_COMPLETE : linkedRecordingId ? WIITM_FIELDS_DRAFT : WIITM_FIELDS_BLANK,
+  );
   const linkedRecording = (linkedSource?.type === 'recording' ? resolveRecording(customer.id, linkedSource.id) : null) ?? null;
   const otherRecordings = resolveRecordings(customer.id).filter(r => linkedSource?.type !== 'recording' || r.id !== linkedSource.id);
 
@@ -240,11 +246,15 @@ export function WiitmDocumentContent() {
     setDirty, setPublished,
   } = useWiitmDocument();
 
+  // See the same guard in CarePlanDocumentPage — Vera's WIITM reads as an
+  // already-completed document, so no CareBridge banner above it at all.
+  const isCompletedDocument = customer.id === 'vera-bramwell';
+
   return (
     <div className="flex flex-col gap-4 max-w-[1280px] mx-auto">
       <input ref={fileInputRef} type="file" accept="audio/*" className="hidden" onChange={handleUpload} />
 
-      {published ? (
+      {isCompletedDocument ? null : published ? (
         <div className="flex items-start gap-3 rounded-lg border border-[rgb(178,224,178)] bg-[rgb(232,247,232)] px-4 py-3">
           <div className="w-7 h-7 rounded-lg bg-[rgb(212,240,212)] flex items-center justify-center flex-shrink-0">
             <CheckCircle2 className="w-4 h-4 text-[rgb(33,166,33)]" />

@@ -57,6 +57,20 @@ export const WIITM_FIELDS_DRAFT: FormField[] = WIITM_FIELDS_BLANK.map(field => {
   return { ...field, value: draft.value, reviewed: false, sourceLines: [{ index: draft.transcriptIndex, highlight: draft.value }] };
 });
 
+/**
+ * Same content as WIITM_FIELDS_DRAFT, but as an already-completed document
+ * rather than a pending CareBridge draft — used for Vera, whose WIITM is
+ * being shown filled in without the recording/review framing (see the note
+ * on her Assessments list entry and Care and Support Plan). `reviewed: true`
+ * with no `sourceLines` drops the Check transcript/Accept row entirely,
+ * same mechanism as asCompletedDocument in CareBridgePage.tsx.
+ */
+export const WIITM_FIELDS_COMPLETE: FormField[] = WIITM_FIELDS_BLANK.map(field => {
+  const draft = WIITM_FIELD_DRAFT_DATA[field.id];
+  if (!draft) return field;
+  return { ...field, value: draft.value, reviewed: true };
+});
+
 // The page-layout groups this single-section document is actually broken
 // into — a heading, an optional sub-heading, and the field(s) (if any) that
 // follow it, in source order. FormFieldsView is called once per group with

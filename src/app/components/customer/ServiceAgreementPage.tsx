@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Info } from 'lucide-react';
 import { PencilSolidIcon } from '../icons/PencilSolidIcon';
 import { Tag } from '../ui/tag';
@@ -119,9 +119,24 @@ interface VisitData {
   cadenceType: string;
   weeks: Array<{ currentWeek?: boolean; activeDays: number[] }>;
   careRequirements: VisitCareRequirements;
+  leewayMins?: number;
 }
 
 const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+function parseTimeToMinutes(t: string) {
+  const [hh, mm] = t.split(':').map((s) => parseInt(s, 10) || 0);
+  return hh * 60 + mm;
+}
+
+function formatMinutesToTime(totalMins: number) {
+  const m = ((totalMins % (24 * 60)) + 24 * 60) % (24 * 60);
+  const hh = Math.floor(m / 60)
+    .toString()
+    .padStart(2, '0');
+  const mm = (m % 60).toString().padStart(2, '0');
+  return `${hh}:${mm}`;
+}
 
 // ─── Visit card ───────────────────────────────────────────────────────────────
 
@@ -164,15 +179,43 @@ function VisitCard({ visitNumber, data, onEdit }: { visitNumber: number; data: V
           <FieldRow label="Care type">{data.careType}</FieldRow>
           <FieldRow label="Start time">
             <div>{data.startTime}</div>
-            {data.earliestStart && (
-              <div className="text-sm text-gray-500 mt-0.5">Earliest: {data.earliestStart}</div>
-            )}
+                    {typeof data.leewayMins !== 'undefined' ? (
+                      (() => {
+                        const leeway = data.leewayMins ?? 0;
+                        const startM = parseTimeToMinutes(data.startTime);
+                        const earliest = startM - leeway;
+                        const latest = startM + leeway;
+                        const earliestStr = formatMinutesToTime(earliest);
+                        const latestStr = formatMinutesToTime(latest);
+                        const earliestDay = earliest < 0 ? ' (prev day)' : '';
+                        const latestDay = latest >= 24 * 60 ? ' (next day)' : '';
+                        return (
+                          <div className="text-sm text-gray-500 mt-0.5 flex items-center gap-2">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button className="text-gray-400 hover:text-gray-600 transition-colors" aria-label="About leeway">
+                                  <Info className="w-3.5 h-3.5" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-[220px] text-xs leading-snug">
+                                This leeway is used by our automated scheduling features
+                              </TooltipContent>
+                            </Tooltip>
+                            <span>Leeway: {leeway} mins</span>
+                            <span className="text-sm text-gray-400">(Range: {earliestStr}{earliestDay} — {latestStr}{latestDay})</span>
+                          </div>
+                        );
+                      })()
+                    ) : data.earliestStart ? (
+                      <div className="text-sm text-gray-500 mt-0.5">Earliest: {data.earliestStart}</div>
+                    ) : null}
           </FieldRow>
+          {typeof data.leewayMins !== 'undefined' && (
+            <FieldRow label="Visit start time leeway">{data.leewayMins} mins</FieldRow>
+          )}
           <FieldRow label="End time">
             <div>{data.endTime}</div>
-            {data.latestEnd && (
-              <div className="text-sm text-gray-500 mt-0.5">Latest: {data.latestEnd}</div>
-            )}
+            {/* Latest end intentionally omitted from the summary view */}
           </FieldRow>
           <FieldRow label="Duration">{data.duration}</FieldRow>
           <FieldRow label="Careworkers">{data.careworkers}</FieldRow>
@@ -295,6 +338,7 @@ const VISIT_1_DATA: VisitData = {
     { activeDays: [4] },
   ],
   careRequirements: defaultCareRequirements,
+  leewayMins: 15,
 };
 
 const VISIT_2_DATA: VisitData = {
@@ -316,6 +360,7 @@ const VISIT_2_DATA: VisitData = {
     { activeDays: [0, 2] },
   ],
   careRequirements: defaultCareRequirements,
+  leewayMins: 15,
 };
 
 // New enquiry customer — visits created to plan the rota, but care requirements,
@@ -344,6 +389,7 @@ const EDITH_VISIT_1_DATA: VisitData = {
   cadenceType: 'Weekly',
   weeks: [{ currentWeek: true, activeDays: [0, 1, 2, 3, 4, 5, 6] }],
   careRequirements: emptyCareRequirements,
+  leewayMins: 15,
 };
 
 const EDITH_VISIT_2_DATA: VisitData = {
@@ -362,6 +408,7 @@ const EDITH_VISIT_2_DATA: VisitData = {
   cadenceType: 'Weekly',
   weeks: [{ currentWeek: true, activeDays: [0, 1, 2, 3, 4, 5, 6] }],
   careRequirements: emptyCareRequirements,
+  leewayMins: 15,
 };
 
 // Vera's enquiry produced the same two visits as Edith's, a month later —
@@ -380,8 +427,12 @@ const SERVICE_AGREEMENT_DATA: Record<string, VisitData[]> = {
 
 export function ServiceAgreementPage() {
   const customer = useCustomer();
-  const visits = SERVICE_AGREEMENT_DATA[customer.id] ?? [];
+  const [visits, setVisits] = useState<VisitData[]>(() => SERVICE_AGREEMENT_DATA[customer.id] ?? []);
   const [editingVisit, setEditingVisit] = useState<{ number: number; data: VisitData } | null>(null);
+
+  useEffect(() => {
+    setVisits(SERVICE_AGREEMENT_DATA[customer.id] ?? []);
+  }, [customer.id]);
 
   return (
     <div>
@@ -390,6 +441,13 @@ export function ServiceAgreementPage() {
           visitNumber={editingVisit.number}
           data={editingVisit.data}
           onClose={() => setEditingVisit(null)}
+          onSave={(update) => {
+            const idx = editingVisit.number - 1;
+            const copy = [...visits];
+            copy[idx] = { ...copy[idx], ...update };
+            setVisits(copy);
+            SERVICE_AGREEMENT_DATA[customer.id] = copy;
+          }}
         />
       )}
 

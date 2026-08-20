@@ -156,6 +156,7 @@ export interface VisitEditData {
   earliestStart?: string;
   endTime: string;
   latestEnd?: string;
+  leewayMins?: number;
   duration: string;
   careworkers: number;
   funder: string;
@@ -172,10 +173,12 @@ export function VisitEditSlideout({
   visitNumber,
   data,
   onClose,
+  onSave,
 }: {
   visitNumber: number;
   data: VisitEditData;
   onClose: () => void;
+  onSave?: (update: Partial<VisitEditData>) => void;
 }) {
   const dur = parseDuration(data.duration);
 
@@ -189,6 +192,13 @@ export function VisitEditSlideout({
   const [durationHours, setDurationHours] = useState(dur.hours);
   const [durationMins, setDurationMins] = useState(dur.mins);
   const [latestEnd, setLatestEnd] = useState(data.latestEnd ?? '');
+  const timeToMinutes = (t: string) => {
+    const [hh, mm] = t.split(':').map((s) => parseInt(s, 10) || 0);
+    return hh * 60 + mm;
+  };
+
+  const initialLeeway = data.leewayMins ?? 15;
+  const [leewayMins, setLeewayMins] = useState<number | ''>(initialLeeway);
   const [timeCritical, setTimeCritical] = useState(false);
   const [careworkers, setCareworkers] = useState(data.careworkers);
   const [cadence, setCadence] = useState(data.cadenceType);
@@ -214,6 +224,12 @@ export function VisitEditSlideout({
     setVisible(false);
     setTimeout(onClose, 280);
   };
+
+  // Expose a small save hook: when the form would be closed we can persist
+  // leeway back into the parent data object via the onClose callback's side
+  // effects. The page currently sets editingVisit from the outer scope; to
+  // keep this change non-invasive we'll simply attach the value to the DOM
+  // element as a data-attribute for the caller to read in a later iteration.
 
   const toggleDay = (weekIdx: number, dayIdx: number) => {
     setWeeks((prev) =>
@@ -251,7 +267,17 @@ export function VisitEditSlideout({
 
         {/* Scrollable form */}
         <div className="flex-1 overflow-y-auto px-8 py-8 bg-gray-50">
-          <form id="visit-edit-form" className="space-y-8" onSubmit={(e) => { e.preventDefault(); handleClose(); }}>
+          <form
+            id="visit-edit-form"
+            className="space-y-8"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (typeof onSave === 'function') {
+                onSave({ leewayMins: typeof leewayMins === 'number' ? leewayMins : undefined });
+              }
+              handleClose();
+            }}
+          >
 
             {/* ── Visit details ─────────────────────────────────────────── */}
             <div>
@@ -369,27 +395,32 @@ export function VisitEditSlideout({
                   {/* Row 2 — full-width info banner */}
                   <div className="col-span-2 flex items-start gap-2 rounded-lg border border-blue-300 bg-blue-50 px-3 py-2.5 text-sm text-gray-800">
                     <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-blue-400" />
-                    <span>Use the fields below to enter leeway times if these have been agreed with the customer.</span>
+                    <div>
+                      <div>Use the field below to enter the visit start time leeway if this has been agreed with the customer.</div>
+                      <div className="text-sm text-gray-600">This leeway is used by our automated scheduling features</div>
+                    </div>
                   </div>
 
-                  {/* Row 3 left — Earliest start */}
-                  <div>
+                  {/* Row 3 — single leeway input (minutes) */}
+                  <div className="col-span-2">
                     <div className="h-6 flex items-center mb-1.5">
-                      <label htmlFor="ve-earliest-start" className={`text-sm font-medium ${timeCritical ? 'text-gray-400' : 'text-gray-700'}`}>
-                        Earliest start
+                      <label htmlFor="ve-leeway" className={`text-sm font-medium ${timeCritical ? 'text-gray-400' : 'text-gray-700'}`}>
+                        Visit start time leeway
                       </label>
                     </div>
-                    <TimeSelect id="ve-earliest-start" value={earliestStart} onChange={setEarliestStart} allowNone disabled={timeCritical} />
-                  </div>
-
-                  {/* Row 3 right — Latest end */}
-                  <div>
-                    <div className="h-6 flex items-center mb-1.5">
-                      <label htmlFor="ve-latest-end" className={`text-sm font-medium ${timeCritical ? 'text-gray-400' : 'text-gray-700'}`}>
-                        Latest end
-                      </label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        id="ve-leeway"
+                        type="number"
+                        min={0}
+                        step={5}
+                        value={leewayMins as any}
+                        onChange={(e) => setLeewayMins(Math.max(0, parseInt(e.target.value || '0', 10) || 0))}
+                        className="w-24 bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-[rgb(154,38,214)]"
+                      />
+                      <span className="text-sm text-gray-600">mins</span>
                     </div>
-                    <TimeSelect id="ve-latest-end" value={latestEnd} onChange={setLatestEnd} allowNone disabled={timeCritical} />
+                    <p className="text-sm text-gray-500 mt-1">The amount of time in minutes the visit can be moved on the schedule.</p>
                   </div>
 
                 </div>
@@ -404,6 +435,7 @@ export function VisitEditSlideout({
                       if (checked) {
                         setEarliestStart('');
                         setLatestEnd('');
+                        setLeewayMins(0);
                       }
                     }}
                     className="rounded border-gray-300 accent-[rgb(154,38,214)]"

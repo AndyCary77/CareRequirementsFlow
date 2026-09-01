@@ -212,26 +212,42 @@
 /* Material's outlined button is a 1px hairline, not iOS's heavier 2px. */
 [data-platform="android"] .secondary-btn { border-width: 1px; }
 
-/* ── FAB ───────────────────────────────────────────────────────────
-   The clearest tell in the whole set: iOS has no FAB concept at all, so
-   the shared bottom-centre pill becomes a proper bottom-end Extended FAB.
-   .docs-fab-wrap also anchors the FAB *menu* and the selection bar, so
-   they follow it across rather than being repositioned separately. */
+/* ── Bottom action button ──────────────────────────────────────────
+   Full-width, matching the existing PASS Android app.
+                    ── why not a bottom-end Extended FAB ──
+   Bottom-end IS the M3 convention for a FAB, but only two of the six
+   things sharing this `.docs-fab` class are FABs ("Add" on a list root,
+   "Add assessment" in a folder). "Start recording (n)", "Add (n)", "Save"
+   and "Move (n)" are commit and contextual actions ending a selection
+   flow — a different component — and for those M3 itself
+   calls for a full-width filled button in a bottom container, not a FAB.
+   Since the class is shared, one treatment has to cover all six — and
+   full-width is both the more correct fit for the majority and consistent
+   with what PASS already ships, which matters more here than spec purity:
+   a prototype that diverges reads as a proposed change nobody proposed. */
 [data-platform="android"] .docs-fab-wrap {
-  left: auto;
-  right: 16px;
-  bottom: 16px;
-  align-items: flex-end;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 12px 16px 16px;
+  align-items: stretch;
 }
 [data-platform="android"] .docs-fab {
-  border-radius: 16px;
-  padding: 15px 20px;
+  width: 100%;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 15px 24px;
   text-transform: none;
   letter-spacing: 0.01em;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
+[data-platform="android"] .docs-fab:disabled { box-shadow: none; }
+/* The full-width button is taller than the iOS pill it replaces, so list
+   content needs a little more room to scroll clear of it. */
+[data-platform="android"] .docs-screen-body { padding-bottom: 88px; }
+/* Sits above the full-width button rather than beside it. */
 [data-platform="android"] .docs-fab-menu {
-  border-radius: 4px;
+  border-radius: 12px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.26);
 }
 

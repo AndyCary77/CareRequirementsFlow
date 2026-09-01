@@ -980,10 +980,24 @@ function CareBridgeSelectScreen({ assessments, documents, onContinue, onClose })
   const [selected, setSelected] = useState(new Set())
   const eligibleAssessments = assessments.filter(a => a.status === 'complete' && a.carebridgeTemplateId)
   const eligibleDocuments = documents.filter(d => d.status === 'complete' && d.carebridgeTemplateId)
+  const assessmentKeys = eligibleAssessments.map(item => `assessment:${item.id}`)
+  const documentKeys = eligibleDocuments.map(item => `document:${item.id}`)
+  const allAssessmentsSelected = assessmentKeys.length > 0 && assessmentKeys.every(k => selected.has(k))
+  const allDocumentsSelected = documentKeys.length > 0 && documentKeys.every(k => selected.has(k))
 
   const toggle = (key) => setSelected(prev => {
     const next = new Set(prev)
     next.has(key) ? next.delete(key) : next.add(key)
+    return next
+  })
+
+  // "Select all" per section — checked once every eligible item in that
+  // section is selected; toggling it either adds every key in the section
+  // or clears just that section's keys (other sections' selections are
+  // untouched either way).
+  const toggleAll = (keys, checked) => setSelected(prev => {
+    const next = new Set(prev)
+    keys.forEach(k => checked ? next.add(k) : next.delete(k))
     return next
   })
 
@@ -1014,6 +1028,16 @@ function CareBridgeSelectScreen({ assessments, documents, onContinue, onClose })
     )
   }
 
+  const renderSectionHeader = (label, keys, allSelected) => (
+    <div className="docs-cb-select-section-header">
+      <p className="docs-cb-select-section-label">{label}</p>
+      <label className="docs-cb-select-all">
+        <input type="checkbox" checked={allSelected} onChange={() => toggleAll(keys, !allSelected)} />
+        Select all
+      </label>
+    </div>
+  )
+
   return (
     <div className="screen">
       <StatusBar />
@@ -1031,13 +1055,13 @@ function CareBridgeSelectScreen({ assessments, documents, onContinue, onClose })
             <>
               {eligibleAssessments.length > 0 && (
                 <>
-                  <p className="docs-cb-select-section-label">Assessments</p>
+                  {renderSectionHeader('Assessments', assessmentKeys, allAssessmentsSelected)}
                   {eligibleAssessments.map(item => renderRow('assessment', item, item.name))}
                 </>
               )}
               {eligibleDocuments.length > 0 && (
                 <>
-                  <p className="docs-cb-select-section-label">Other Documents</p>
+                  {renderSectionHeader('Other Documents', documentKeys, allDocumentsSelected)}
                   {eligibleDocuments.map(item => renderRow('document', item, item.title))}
                 </>
               )}

@@ -502,7 +502,14 @@
 }
 /* Groups the picker's two sources (Assessments / Other Documents) within
    one scrollable list — same look as the filter drawer's own section
-   labels (.docs-filter-section h3). */
+   labels (.docs-filter-section h3), plus a "Select all" for that section
+   only, right-aligned on the same row. */
+.docs-cb-select-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 6px;
+}
 .docs-cb-select-section-label {
   font-family: Barlow, sans-serif;
   font-size: 13px;
@@ -511,7 +518,22 @@
   text-transform: uppercase;
   letter-spacing: 0.3px;
   margin: 0;
-  padding: 14px 16px 6px;
+}
+.docs-cb-select-all {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: Barlow, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand-purple-6-purple-4);
+  cursor: pointer;
+}
+.docs-cb-select-all input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--brand-purple-6-purple-4);
+  cursor: pointer;
 }
 
 /* ── Search + filter bar (Assessments / Other Documents root) ────────

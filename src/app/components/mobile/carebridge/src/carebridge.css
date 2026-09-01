@@ -396,20 +396,6 @@
   line-height: 1.35;
 }
 
-.cb-share-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 16px 20px 0;
-}
-
-.cb-share-label {
-  flex: 1;
-  font-family: Barlow, sans-serif;
-  font-size: 14px;
-  color: #222;
-}
-
 .cb-consent-audit {
   font-family: Barlow, sans-serif;
   font-size: 12px;

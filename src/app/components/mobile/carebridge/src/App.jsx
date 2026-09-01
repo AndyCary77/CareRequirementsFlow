@@ -335,7 +335,7 @@ function TemplateScreen({ customer, onBack, onPick }) {
 
 // ─── Screen 3: consent ───────────────────────────────────────
 
-function ConsentScreen({ customer, template, docsLabel, consent, setConsent, share, setShare, onBack, onStart }) {
+function ConsentScreen({ customer, template, docsLabel, consent, setConsent, onBack, onStart }) {
   const first = customer?.name.split(' ')[0] || 'the customer'
   const [micTest, setMicTest] = useState('idle') // idle | testing | ok
   // The screen stays mounted across a template switch (all steps render in a
@@ -386,13 +386,6 @@ function ConsentScreen({ customer, template, docsLabel, consent, setConsent, sha
           <span className="cb-check">{consent && <CheckIcon />}</span>
           <span className="cb-consent-confirm-text">{first} has given verbal consent to be recorded</span>
         </button>
-
-        <div className="cb-share-row">
-          <span className="cb-share-label">Share a copy of the recording with {first}</span>
-          <button className={`tog${share ? ' tog-on' : ''}`} onClick={() => setShare(s => !s)} aria-label="Share recording">
-            <span className="tog-thumb" />
-          </button>
-        </div>
 
         <div className="cb-consent-audit">A consent record is saved for audit.</div>
       </div>
@@ -549,7 +542,6 @@ export default function App() {
   // really works; the picker upstream allows multi-select for this reason).
   const [extraTemplates, setExtraTemplates] = useState(() => deepLink?.templates.slice(1) ?? [])
   const [consent, setConsent] = useState(false)
-  const [share, setShare] = useState(false)
   const [seconds, setSeconds] = useState(0)
   const [locked, setLocked] = useState(false)
   const [overlay, setOverlay] = useState(null) // null | 'uploading' | 'done'
@@ -583,8 +575,8 @@ export default function App() {
   // Account, which has no relation to how this recording began.
   const entryPointHref = deepLink ? '../customer-documents/' : '../account/'
 
-  const pickCustomer = (c) => { setCustomer(c); setTemplate(null); setExtraTemplates([]); setConsent(false); setShare(false); setSeconds(0); setStep('template') }
-  const pickTemplate = (t) => { setTemplate(t); setExtraTemplates([]); setConsent(false); setShare(false); setSeconds(0); setStep('consent') }
+  const pickCustomer = (c) => { setCustomer(c); setTemplate(null); setExtraTemplates([]); setConsent(false); setSeconds(0); setStep('template') }
+  const pickTemplate = (t) => { setTemplate(t); setExtraTemplates([]); setConsent(false); setSeconds(0); setStep('consent') }
   const finish = () => { setOverlay('uploading'); setTimeout(() => setOverlay('done'), 1700) }
 
   return (
@@ -602,7 +594,7 @@ export default function App() {
             <div className="cb-track-item" style={{ width: `${100 / STEPS.length}%` }}>
               <ConsentScreen
                 customer={customer} template={template} docsLabel={docsLabel}
-                consent={consent} setConsent={setConsent} share={share} setShare={setShare}
+                consent={consent} setConsent={setConsent}
                 // A deep-linked visit never went through Customer/Template
                 // (those steps only exist to make the choices the picker
                 // upstream already made) — so backing out of Consent should

@@ -492,58 +492,70 @@
   margin-top: 22px;
 }
 
-/* Bigger, bolder two-tone bars — muted grey fading into vivid purple at the
-   leading "happening right now" edge — same treatment as the reference
-   recording-card waveform (marketing's mock), rather than the old
-   single-tone pill. No pill background: bars sit directly on the screen,
-   same as the reference.
+/* A live level meter, not a scrolling clip — every bar sits in a fixed
+   slot (no horizontal movement at all) and pulses in height in place, the
+   way a real "recording…" indicator looks. Single colour throughout: with
+   nothing sliding past, there's no earlier/later portion of the bar to
+   shade differently, so a two-tone split would just be decoration with
+   nothing behind it.
 
-   Two identical bar tracks are stacked (position: absolute, same
-   animation) rather than colouring individual bars — a purple one
-   underneath, a grey one on top masked to fade out past 60% of the width.
-   Colouring per-bar instead would mean each bar's tone travels with it as
-   it scrolls, so the muted/vivid split would drift across the whole width
-   over time instead of staying pinned to the leading edge like the
-   reference. Masking a fixed overlay (relative to this non-scrolling
-   container) keeps the split stable regardless of scroll position, since
-   both tracks scroll in lockstep underneath it. */
+   Each bar's own `height` (set inline in App.jsx) traces the overall
+   amplitude envelope — front-loaded peak, long gradual taper, quiet at
+   both ends. The animation on top of that is a proportional wobble around
+   that base height, grouped in clusters of 3 (App.jsx's GROUP_SIZE) rather
+   than per-bar-independent, so neighbours visibly breathe together; the
+   near-silent bars at either end use a much flatter wobble (cbBarPulseQuiet)
+   since real silence doesn't swing through the same range live speech does. */
 .cb-live-wave {
-  position: relative;
   box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
   height: 48px;
   width: 260px;
   margin-top: 16px;
-  overflow: hidden;
 }
 
-.cb-live-wave-track {
-  position: absolute;
-  inset: 0;
-  display: flex;
+.cb-live-wave-bar {
   flex-shrink: 0;
-  align-items: center;
-  gap: 5px;
-  animation: cbWaveScroll 6s linear infinite;
+  width: 4px;
+  border-radius: 2px;
+  background: var(--brand-purple-6-purple-4);
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
 }
-.cb-live-wave-track span {
-  flex-shrink: 0;
-  width: 5px;
-  border-radius: 3px;
-}
+.cb-live-wave-bar--1 { animation-name: cbBarPulse1; }
+.cb-live-wave-bar--2 { animation-name: cbBarPulse2; }
+.cb-live-wave-bar--3 { animation-name: cbBarPulse3; }
+.cb-live-wave-bar--quiet { animation-name: cbBarPulseQuiet; }
 
-.cb-live-wave-track--live span { background: var(--brand-purple-6-purple-4); }
-.cb-live-wave-track--muted {
-  -webkit-mask-image: linear-gradient(to right, #000 0%, #000 60%, transparent 72%);
-  mask-image: linear-gradient(to right, #000 0%, #000 60%, transparent 72%);
+@keyframes cbBarPulse1 {
+  0%   { transform: scaleY(0.35); }
+  20%  { transform: scaleY(0.9); }
+  40%  { transform: scaleY(0.5); }
+  60%  { transform: scaleY(1); }
+  80%  { transform: scaleY(0.4); }
+  100% { transform: scaleY(0.35); }
 }
-.cb-live-wave-track--muted span { background: var(--greyscale-11-grey-80); }
-
-/* The track is two copies of the same sequence back to back, so scrolling
-   exactly 50% of its own width loops seamlessly into the start of the
-   second copy — indistinguishable from the first. */
-@keyframes cbWaveScroll {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-50%); }
+@keyframes cbBarPulse2 {
+  0%   { transform: scaleY(0.5); }
+  25%  { transform: scaleY(1); }
+  50%  { transform: scaleY(0.3); }
+  75%  { transform: scaleY(0.8); }
+  100% { transform: scaleY(0.5); }
+}
+@keyframes cbBarPulse3 {
+  0%   { transform: scaleY(0.25); }
+  30%  { transform: scaleY(0.6); }
+  55%  { transform: scaleY(1); }
+  80%  { transform: scaleY(0.45); }
+  100% { transform: scaleY(0.25); }
+}
+@keyframes cbBarPulseQuiet {
+  0%   { transform: scaleY(0.8); }
+  50%  { transform: scaleY(1.15); }
+  100% { transform: scaleY(0.8); }
 }
 
 .cb-rec-sub {
@@ -748,6 +760,34 @@
   margin-top: 2px;
 }
 
+.cb-title-field {
+  margin: 0 16px 16px;
+}
+.cb-title-field label {
+  display: block;
+  font-family: Barlow, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--greyscale-2-grey-20);
+  margin-bottom: 6px;
+}
+.cb-title-optional {
+  font-weight: 400;
+  color: var(--greyscale-6-grey-50);
+}
+.cb-title-field input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  background: #fff;
+  border: 1px solid var(--ui-purple-4-lavendar);
+  border-radius: 10px;
+  font-family: Barlow, sans-serif;
+  font-size: 15px;
+  color: #222;
+}
+.cb-title-field input::placeholder { color: var(--greyscale-7-grey-60); }
+
 .cb-check-intro {
   font-family: Barlow, sans-serif;
   font-size: 13px;
@@ -864,6 +904,14 @@
   font-size: 18px;
   font-weight: 600;
   color: #222;
+}
+
+.cb-overlay-subtitle {
+  font-family: Barlow, sans-serif;
+  font-size: 14px;
+  font-style: italic;
+  color: var(--greyscale-5-grey-45);
+  margin-top: 2px;
 }
 
 .cb-overlay-text {

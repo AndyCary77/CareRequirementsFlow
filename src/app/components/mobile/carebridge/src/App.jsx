@@ -61,26 +61,59 @@ const MicLevelBars = () => (
     <span /><span /><span /><span /><span />
   </span>
 )
-// Fixed, hand-authored bar heights (not Math.random) so the sequence loops
-// seamlessly — the track is rendered twice back-to-back and scrolled by
-// exactly one copy's width, which only lines up if the pattern is stable
-// across renders (the record clock re-renders this screen every second).
-const WAVE_HEIGHTS = [8, 20, 12, 34, 16, 28, 10, 40, 22, 14, 30, 18, 24, 9, 20, 36, 15, 26, 11, 32, 19, 13, 24, 17]
-// Two identical, perfectly-synced bar tracks stacked on top of each other —
-// a vivid purple one underneath, and a muted grey one on top masked to fade
-// out past ~60% of the width. Since both tracks scroll in lockstep, the
-// mask (fixed to the container, not the scrolling bars) reads as a stable
-// "muted past / vivid happening-right-now" edge, same as the reference
-// recording-card waveform, rather than the two tones drifting across the
-// bar as the track scrolls.
+// A live level-meter, not a pre-recorded clip: every bar stays in its own
+// fixed slot and pulses in place, the way a real "recording…" indicator
+// looks (Voice Memos, WhatsApp) — nothing slides across the screen, and
+// there's no earlier/later portion to shade differently, so a single
+// colour is the honest choice, not a stylistic one.
+//
+// The row's base heights trace a real amplitude envelope rather than
+// uniform noise: near-silent at both ends, a quick rise into a front-loaded
+// loud stretch, then a long, gradual taper back down — matching how a
+// spoken utterance actually looks (quick to start, slow to trail off), not
+// symmetric. Fixed/hand-authored (not Math.random) so the shape is stable
+// across re-renders (this screen re-renders every second, on the record
+// clock).
+const WAVE_HEIGHTS = [
+  3, 4, 3,                              // quiet — nothing said yet
+  10, 19,                               // quick rise
+  28, 33, 30, 34, 29, 32, 27, 31, 28,   // front-loaded, sustained peak
+  22, 18, 24, 19, 21, 17, 20,           // stepping down
+  13, 10, 14, 9, 12, 8, 11,
+  9, 7, 8, 5, 6, 4,                     // long, gradual taper — more
+  4, 3,                                 // bars here than the rise had
+]
+// The near-silent bars at both ends (matching the quiet heights above)
+// barely move at all, rather than pulsing through the same wide range as
+// the loud stretch — a flat line is what real silence looks like.
+const QUIET_INDICES = new Set([0, 1, 2, 34, 35])
+// Bars pulse in groups of 3, not independently — neighbours share a
+// duration and are within a few hundredths of a second of each other in
+// phase, so a cluster visibly breathes together, the way adjacent moments
+// of the same word do. Groups themselves get a scrambled (not left→right
+// increasing) delay order specifically so nothing reads as travelling
+// across the row — that's the one thing this must not look like.
+const GROUP_SIZE = 3
+const GROUP_DELAYS = [0, -0.6, -0.3, -0.75, -0.15, -0.5, -0.9, -0.2, -0.65, -0.4, -0.1, -0.55]
+const GROUP_DURATIONS = [0.7, 0.85, 0.65, 0.95, 0.75, 0.8]
+const BAR_JITTER = [0, -0.04, -0.08]
 const LiveWaveform = () => (
   <div className="cb-live-wave" role="img" aria-label="CareBridge is listening">
-    <div className="cb-live-wave-track cb-live-wave-track--live">
-      {[...WAVE_HEIGHTS, ...WAVE_HEIGHTS].map((h, i) => <span key={i} style={{ height: `${h}px` }} />)}
-    </div>
-    <div className="cb-live-wave-track cb-live-wave-track--muted">
-      {[...WAVE_HEIGHTS, ...WAVE_HEIGHTS].map((h, i) => <span key={i} style={{ height: `${h}px` }} />)}
-    </div>
+    {WAVE_HEIGHTS.map((h, i) => {
+      const quiet = QUIET_INDICES.has(i)
+      const group = Math.floor(i / GROUP_SIZE)
+      return (
+        <span
+          key={i}
+          className={`cb-live-wave-bar ${quiet ? 'cb-live-wave-bar--quiet' : `cb-live-wave-bar--${(group % 3) + 1}`}`}
+          style={{
+            height: `${h}px`,
+            animationDuration: quiet ? '1.6s' : `${GROUP_DURATIONS[group % GROUP_DURATIONS.length]}s`,
+            animationDelay: `${GROUP_DELAYS[group % GROUP_DELAYS.length] + BAR_JITTER[i % BAR_JITTER.length]}s`,
+          }}
+        />
+      )
+    })}
   </div>
 )
 
@@ -191,6 +224,16 @@ const templateById = (id) => TEMPLATES.find(t => t.id === id)
 
 const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 
+// "Mon 21 Aug 2026" — the reference recording-card design's date style
+// ("Mon 3 Aug") plus a year, since a title (unlike a card sitting in a
+// dated list) can persist somewhere without other date context next to it.
+// Built from fixed arrays rather than toLocaleDateString so it reads the
+// same regardless of the browser's locale (some locales insert a comma —
+// "Mon, 21 Aug" — that reference doesn't have).
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const formatTitleDate = (d) => `${WEEKDAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`
+
 // Reads ?customer=<id>&templates=<id,id,...> — the deep link a customer's
 // own Documents/Assessments picker (mobile/customer-documents) hands off
 // to, once the reviewer has chosen which documents this recording is for.
@@ -236,6 +279,15 @@ const groupStates = (states) => {
 
 const sumFields = (states, key) => states.reduce((n, s) => n + s[key], 0)
 const RECORD_RAMP = 24 // seconds to a full first-pass capture (simulated)
+
+// Temporarily off — the per-section completion checklist on the "Before
+// You Finish" review screen (X of Y sections complete, the field-count
+// badges, the grouped section list) is a later-phase feature, not
+// necessarily committed to. All the underlying tracking (sectionStates,
+// groupStates, the states passed into ReviewScreen) is untouched — this
+// only gates what ReviewScreen renders, so flipping it back to true is the
+// entire job of restoring it. See memory: carebridge-completion-checklist.
+const SHOW_COMPLETION_CHECKLIST = false
 
 // ─── Screen 1: choose customer ───────────────────────────────
 
@@ -423,12 +475,17 @@ function RecordScreen({ customer, template, docsLabel, seconds, states, onEnd, o
         <LiveWaveform />
         <div className="cb-rec-sub">Recording {first}’s assessment. You can set the phone aside.</div>
 
-        <div className="cb-capture">
-          <div className="cb-capture-row">
-            <span>Filling the {docsLabel}</span>
+        {/* Tied to the same per-section completion tracking as the review
+            checklist — temporarily off alongside it, see
+            SHOW_COMPLETION_CHECKLIST and memory: carebridge-completion-checklist. */}
+        {SHOW_COMPLETION_CHECKLIST && (
+          <div className="cb-capture">
+            <div className="cb-capture-row">
+              <span>Filling the {docsLabel}</span>
+            </div>
+            <div className="cb-capture-bar"><span style={{ width: `${pct}%` }} /></div>
           </div>
-          <div className="cb-capture-bar"><span style={{ width: `${pct}%` }} /></div>
-        </div>
+        )}
 
         <button className="cb-rec-note" onClick={onLock}>
           <LockIcon />
@@ -472,7 +529,7 @@ function LockScreen({ customer, seconds, onUnlock }) {
 
 // ─── Screen 5: end-of-visit coverage check ───────────────────
 
-function ReviewScreen({ customer, template, seconds, states, onResume, onFinish }) {
+function ReviewScreen({ customer, template, seconds, states, title, setTitle, onResume, onFinish }) {
   const groups = groupStates(states)
   const totalFields = sumFields(states, 'fields')
   const capturedFields = sumFields(states, 'captured')
@@ -487,14 +544,41 @@ function ReviewScreen({ customer, template, seconds, states, onResume, onFinish 
         <div className="cb-review-summary">
           <div className="cb-review-check"><CareBridgeIcon size={18} /></div>
           <div>
-            <div className="cb-review-title">{completeCount} of {states.length} sections complete</div>
-            <div className="cb-review-sub">CareBridge filled {capturedFields} of {totalFields} fields · {fmt(seconds)} recorded</div>
+            {SHOW_COMPLETION_CHECKLIST ? (
+              <>
+                <div className="cb-review-title">{completeCount} of {states.length} sections complete</div>
+                <div className="cb-review-sub">CareBridge filled {capturedFields} of {totalFields} fields · {fmt(seconds)} recorded</div>
+              </>
+            ) : (
+              <>
+                <div className="cb-review-title">Recording paused</div>
+                <div className="cb-review-sub">{fmt(seconds)} recorded</div>
+              </>
+            )}
           </div>
         </div>
 
-        <div className="cb-check-intro">Scan for anything left incomplete, then resume the conversation or finish up.</div>
+        {/* Optional — worth naming now the conversation's actually happened
+            (guessing beforehand, on Consent, would just be a worse version
+            of the same pre-filled default), and before it's sent off. */}
+        <div className="cb-title-field">
+          <label htmlFor="cb-recording-title">Recording title <span className="cb-title-optional">(optional)</span></label>
+          <input
+            id="cb-recording-title"
+            type="text"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            placeholder="e.g. Fall risk discussion"
+          />
+        </div>
 
-        {groups.map(group => (
+        <div className="cb-check-intro">
+          {SHOW_COMPLETION_CHECKLIST
+            ? 'Scan for anything left incomplete, then resume the conversation or finish up.'
+            : 'Give this recording a title, then resume the conversation or finish up.'}
+        </div>
+
+        {SHOW_COMPLETION_CHECKLIST && groups.map(group => (
           <div key={group.name}>
             <div className="menu-section-label">{group.name}</div>
             <div className="cb-sec-list">
@@ -568,6 +652,42 @@ export default function App() {
   const docsLabel = allTemplates.length > 1
     ? `${template?.short || template?.name} +${allTemplates.length - 1} more`
     : (template?.short || template?.name)
+
+  // Optional recording title — editable on the review screen, once there's
+  // an actual conversation to name (guessing beforehand, on Consent, would
+  // just be a worse version of this same default). Pre-filled the first
+  // time review is reached so most visits need zero taps; once the
+  // reviewer has typed their own, resuming to record more and coming back
+  // to review again won't stomp it.
+  //
+  // A single document names itself fine ("Arthur's Consent to Care"), but
+  // docsLabel's "+1 more" is UI chrome, not something you'd want inside an
+  // actual title — so once more than one is selected, fall back to
+  // "Recording with Arthur" rather than trying to cram every document name
+  // in. Deliberately not "Arthur's Visit" — Visit is already a real, fairly
+  // loaded concept elsewhere in the platform (a scheduled visit record with
+  // its own cadence/duration), so a recording titled that way would read
+  // like it *is* one of those rather than a CareBridge session that
+  // happened to occur during one. Also deliberately not the customer's
+  // dueLabel (e.g. "Initial assessment due") — that's a fixed property of
+  // the customer, not of what was actually picked in this recording, so
+  // it'd claim something we don't actually know (a demo customer's
+  // dueLabel could read "Initial assessment" while the reviewer selected
+  // two Other Documents with nothing to do with an assessment).
+  //
+  // Both cases get a date suffix — even a single specific document name
+  // would otherwise collide with a second recording of the same document
+  // on a different day.
+  const [title, setTitle] = useState('')
+  useEffect(() => {
+    if (step === 'review' && !title && customer) {
+      const first = customer.name.split(' ')[0]
+      const what = allTemplates.length > 1 ? `Recording with ${first}` : `${first}’s ${docsLabel}`
+      setTitle(`${what} – ${formatTitleDate(new Date())}`)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step])
+
   // Where every exit from this flow (backing out via Customer's header
   // arrow, or finishing via the "Done" overlay button) lands — a
   // deep-linked visit came from customer-documents' own "Record and Draft
@@ -575,8 +695,8 @@ export default function App() {
   // Account, which has no relation to how this recording began.
   const entryPointHref = deepLink ? '../customer-documents/' : '../account/'
 
-  const pickCustomer = (c) => { setCustomer(c); setTemplate(null); setExtraTemplates([]); setConsent(false); setSeconds(0); setStep('template') }
-  const pickTemplate = (t) => { setTemplate(t); setExtraTemplates([]); setConsent(false); setSeconds(0); setStep('consent') }
+  const pickCustomer = (c) => { setCustomer(c); setTemplate(null); setExtraTemplates([]); setConsent(false); setSeconds(0); setTitle(''); setStep('template') }
+  const pickTemplate = (t) => { setTemplate(t); setExtraTemplates([]); setConsent(false); setSeconds(0); setTitle(''); setStep('consent') }
   const finish = () => { setOverlay('uploading'); setTimeout(() => setOverlay('done'), 1700) }
 
   return (
@@ -607,7 +727,7 @@ export default function App() {
               <RecordScreen customer={customer} template={template} docsLabel={docsLabel} seconds={seconds} states={recStates} onEnd={() => { setLocked(false); setStep('review') }} onLock={() => setLocked(true)} />
             </div>
             <div className="cb-track-item" style={{ width: `${100 / STEPS.length}%` }}>
-              <ReviewScreen customer={customer} template={template} seconds={seconds} states={finalStates} onResume={() => setStep('record')} onFinish={finish} />
+              <ReviewScreen customer={customer} template={template} seconds={seconds} states={finalStates} title={title} setTitle={setTitle} onResume={() => setStep('record')} onFinish={finish} />
             </div>
           </div>
 
@@ -629,6 +749,7 @@ export default function App() {
                   <>
                     <div className="cb-success-icon"><CheckIcon /></div>
                     <div className="cb-overlay-title">Sent to PASS</div>
+                    {title && <div className="cb-overlay-subtitle">“{title}”</div>}
                     <div className="cb-overlay-text">
                       CareBridge has drafted {customer?.name.split(' ')[0]}’s {docsLabel}.
                       Write up the care plan, risk assessments and templates in PASS.

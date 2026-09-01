@@ -506,35 +506,51 @@
   margin-top: 22px;
 }
 
+/* Bigger, bolder two-tone bars — muted grey fading into vivid purple at the
+   leading "happening right now" edge — same treatment as the reference
+   recording-card waveform (marketing's mock), rather than the old
+   single-tone pill. No pill background: bars sit directly on the screen,
+   same as the reference.
+
+   Two identical bar tracks are stacked (position: absolute, same
+   animation) rather than colouring individual bars — a purple one
+   underneath, a grey one on top masked to fade out past 60% of the width.
+   Colouring per-bar instead would mean each bar's tone travels with it as
+   it scrolls, so the muted/vivid split would drift across the whole width
+   over time instead of staying pinned to the leading edge like the
+   reference. Masking a fixed overlay (relative to this non-scrolling
+   container) keeps the split stable regardless of scroll position, since
+   both tracks scroll in lockstep underneath it. */
 .cb-live-wave {
+  position: relative;
   box-sizing: border-box;
-  display: inline-flex;
-  align-items: center;
-  height: 28px;
-  width: 140px;
-  margin-top: 12px;
-  border-radius: 16px;
-  background: var(--brand-purple-8-purple-10);
+  height: 48px;
+  width: 260px;
+  margin-top: 16px;
   overflow: hidden;
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 16px, #000 calc(100% - 16px), transparent);
-  mask-image: linear-gradient(to right, transparent, #000 16px, #000 calc(100% - 16px), transparent);
 }
 
 .cb-live-wave-track {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-shrink: 0;
   align-items: center;
-  gap: 4px;
-  padding: 0 8px;
+  gap: 5px;
   animation: cbWaveScroll 6s linear infinite;
 }
-
 .cb-live-wave-track span {
   flex-shrink: 0;
-  width: 3px;
-  border-radius: 2px;
-  background: var(--brand-purple-3-purple-2);
+  width: 5px;
+  border-radius: 3px;
 }
+
+.cb-live-wave-track--live span { background: var(--brand-purple-6-purple-4); }
+.cb-live-wave-track--muted {
+  -webkit-mask-image: linear-gradient(to right, #000 0%, #000 60%, transparent 72%);
+  mask-image: linear-gradient(to right, #000 0%, #000 60%, transparent 72%);
+}
+.cb-live-wave-track--muted span { background: var(--greyscale-11-grey-80); }
 
 /* The track is two copies of the same sequence back to back, so scrolling
    exactly 50% of its own width loops seamlessly into the start of the

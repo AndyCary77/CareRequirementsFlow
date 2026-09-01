@@ -65,13 +65,21 @@ const MicLevelBars = () => (
 // seamlessly — the track is rendered twice back-to-back and scrolled by
 // exactly one copy's width, which only lines up if the pattern is stable
 // across renders (the record clock re-renders this screen every second).
-const WAVE_SEQUENCE = [6, 14, 9, 20, 11, 17, 7, 22, 13, 8, 18, 10, 15, 6, 12, 19, 9, 16, 7, 21, 11, 8, 14, 17]
+const WAVE_HEIGHTS = [8, 20, 12, 34, 16, 28, 10, 40, 22, 14, 30, 18, 24, 9, 20, 36, 15, 26, 11, 32, 19, 13, 24, 17]
+// Two identical, perfectly-synced bar tracks stacked on top of each other —
+// a vivid purple one underneath, and a muted grey one on top masked to fade
+// out past ~60% of the width. Since both tracks scroll in lockstep, the
+// mask (fixed to the container, not the scrolling bars) reads as a stable
+// "muted past / vivid happening-right-now" edge, same as the reference
+// recording-card waveform, rather than the two tones drifting across the
+// bar as the track scrolls.
 const LiveWaveform = () => (
   <div className="cb-live-wave" role="img" aria-label="CareBridge is listening">
-    <div className="cb-live-wave-track">
-      {[...WAVE_SEQUENCE, ...WAVE_SEQUENCE].map((h, i) => (
-        <span key={i} style={{ height: `${h}px` }} />
-      ))}
+    <div className="cb-live-wave-track cb-live-wave-track--live">
+      {[...WAVE_HEIGHTS, ...WAVE_HEIGHTS].map((h, i) => <span key={i} style={{ height: `${h}px` }} />)}
+    </div>
+    <div className="cb-live-wave-track cb-live-wave-track--muted">
+      {[...WAVE_HEIGHTS, ...WAVE_HEIGHTS].map((h, i) => <span key={i} style={{ height: `${h}px` }} />)}
     </div>
   </div>
 )

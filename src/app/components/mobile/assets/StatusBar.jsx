@@ -61,7 +61,7 @@ const AndroidIcons = () => (
  * platform behaviour, not decoration, and it's exactly the kind of thing
  * this flow needs to show since it records in the background.
  */
-export default function StatusBar({ recording = false }) {
+export default function StatusBar({ recording = false, recordingTime }) {
   const [platform] = usePlatform()
   const android = platform === 'android'
   return (
@@ -70,7 +70,23 @@ export default function StatusBar({ recording = false }) {
         <span className="status-time">9:41</span>
         {android && <AndroidNotifIcons />}
       </span>
-      {android && <span className="status-punch-hole" aria-hidden="true" />}
+
+      {/* The centred hardware cut-out: a hole-punch camera on Android, the
+          Dynamic Island on iOS — which additionally carries a compact Live
+          Activity while recording. */}
+      {android
+        ? <span className="status-punch-hole" aria-hidden="true" />
+        : (
+          <span className={`status-island${recording ? ' status-island--live' : ''}`} aria-hidden="true">
+            {recording && (
+              <>
+                <span className="status-island-dot" />
+                <span className="status-island-timer">{recordingTime}</span>
+              </>
+            )}
+          </span>
+        )
+      }
       <div className="status-icons">
         {android && recording && (
           <span className="status-mic-indicator" title="Microphone in use">

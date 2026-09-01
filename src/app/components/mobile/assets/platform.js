@@ -17,17 +17,23 @@ const DEFAULT_PLATFORM = 'ios'
 
 const isValid = (p) => PLATFORMS.includes(p)
 
-/**
- * Current platform. A `?platform=ios|android` query param wins and is
- * persisted, so a link can force a platform and it still sticks as the
- * reviewer moves on through the flow.
- */
-export function getPlatform() {
+// A `?platform=` param seeds the stored value ONCE, here at module load.
+// It must not be consulted on every read: a page opened with ?platform=ios
+// could then never be toggled to Android, because each snapshot would
+// re-read the URL and snap straight back.
+;(function seedFromUrl() {
   const fromUrl = new URLSearchParams(window.location.search).get('platform')
   if (isValid(fromUrl)) {
     try { localStorage.setItem(STORAGE_KEY, fromUrl) } catch {}
-    return fromUrl
   }
+})()
+
+/**
+ * Current platform, from storage only — the URL seed above has already
+ * been folded in, so a link can force a platform and it still sticks as
+ * the reviewer moves on through the flow.
+ */
+export function getPlatform() {
   let stored = null
   try { stored = localStorage.getItem(STORAGE_KEY) } catch {}
   return isValid(stored) ? stored : DEFAULT_PLATFORM

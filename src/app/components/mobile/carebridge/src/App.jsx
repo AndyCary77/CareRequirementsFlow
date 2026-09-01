@@ -4,6 +4,7 @@ import StatusBar from '../../assets/StatusBar'
 import AppHeader from '../../assets/AppHeader'
 import CareBridgeIcon from '../../assets/CareBridgeIcon'
 import { usePlatform } from '../../assets/platform'
+import { handleSystemBack, useBackHandler } from '../../assets/backStack'
 import arthurImg from '../../assets/img/Customer=Arthur.png'
 import davidImg from '../../assets/img/Customer=David Farrington.png'
 import jimImg from '../../assets/img/Customer=Jim McLean.png'
@@ -474,9 +475,10 @@ function RecordScreen({ customer, template, docsLabel, seconds, states, onEnd, o
   const pct = totalFields ? Math.round((capturedFields / totalFields) * 100) : 0
   return (
     <div className="cb-screen cb-screen-record">
-      {/* Android shows an OS-level green mic indicator whenever the mic is
-          open — the one screen where that's actually true. */}
-      <StatusBar recording />
+      {/* The one screen where the mic is genuinely open, so both platforms'
+          OS-level recording indicators apply: Android's green mic chip, and
+          iOS's Dynamic Island carrying a compact Live Activity. */}
+      <StatusBar recording recordingTime={fmt(seconds)} />
       <AppHeader
         title={docsLabel || 'Recording'}
         right={<button className="app-header-action" onClick={onLock} aria-label="Lock screen"><LockIcon /></button>}
@@ -594,6 +596,52 @@ function LockScreen({ customer, seconds, onUnlock }) {
   )
 }
 
+// ─── Android: app backgrounded, recording continues ──────────
+//
+// What Android's system back actually does from the root of a task: it
+// moves the app to the background. It does *not* stop the work — the
+// foreground service holding the mic keeps running, which is the entire
+// reason this flow uses one. So back here isn't a destructive action to
+// guard against with a confirm dialog; it's the feature, and showing the
+// ongoing notification still ticking is the clearest way to demonstrate
+// that. iOS has no equivalent (its back is purely in-app), so this surface
+// is Android-only.
+function BackgroundedScreen({ customer, seconds, onReturn }) {
+  return (
+    <div className="cb-bg">
+      <div className="cb-bg-status">
+        <span className="cb-bg-time">9:41</span>
+        <span className="cb-bg-mic" title="Microphone in use">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 15a3 3 0 003-3V6a3 3 0 10-6 0v6a3 3 0 003 3zm7-3a7 7 0 01-6 6.92V22h-2v-3.08A7 7 0 015 12h2a5 5 0 0010 0h2z"/>
+          </svg>
+        </span>
+      </div>
+
+      {/* The notification shade, pulled down far enough to show the ongoing
+          notification the service posts — same card as the lock screen. */}
+      <button type="button" className="cb-lock-notif cb-bg-notif" onClick={onReturn}>
+        <div className="cb-lock-notif-app">
+          <span className="cb-lock-notif-icon"><CareBridgeIcon size={12} /></span>
+          <span className="cb-lock-notif-appname">CareBridge</span>
+          <span className="cb-lock-notif-sep">•</span>
+          <span className="cb-lock-notif-elapsed">{fmt(seconds)}</span>
+        </div>
+        <div className="cb-lock-notif-title">Recording assessment</div>
+        <div className="cb-lock-notif-body">{customer?.name || 'Assessment'}</div>
+        <div className="cb-lock-notif-actions">
+          <span className="cb-lock-notif-action">Pause</span>
+          <span className="cb-lock-notif-action">Stop</span>
+        </div>
+      </button>
+
+      <div className="cb-bg-hint">
+        Still recording in the background.<br />Tap the notification to come back.
+      </div>
+    </div>
+  )
+}
+
 // ─── Screen 5: end-of-visit coverage check ───────────────────
 
 function ReviewScreen({ customer, template, seconds, states, title, setTitle, onResume, onFinish }) {
@@ -695,6 +743,11 @@ export default function App() {
   const [consent, setConsent] = useState(false)
   const [seconds, setSeconds] = useState(0)
   const [locked, setLocked] = useState(false)
+  // Android only: the app moved to the background but the foreground
+  // service is still recording. Deliberately not a step change — the
+  // record clock keys off `step`, so leaving it on 'record' is what keeps
+  // the timer running underneath, which is the whole point.
+  const [backgrounded, setBackgrounded] = useState(false)
   const [overlay, setOverlay] = useState(null) // null | 'uploading' | 'done'
   const [entering] = useState(() =>
     new URLSearchParams(window.location.search).get('transition') === '1'
@@ -767,24 +820,27 @@ export default function App() {
   const finish = () => { setOverlay('uploading'); setTimeout(() => setOverlay('done'), 1700) }
 
   // Android's system back exists on every screen whether or not the app
-  // draws its own affordance, so it has to mean something everywhere —
-  // this mirrors each step's in-app back. Two deliberate choices: on
-  // 'record' it goes to review rather than exiting, since silently
-  // discarding a live recording is exactly the failure an Android build
-  // has to guard against; and while the lock screen or an overlay is up,
-  // back dismisses that first, as it would natively.
-  const systemBack = () => {
-    if (locked) { setLocked(false); return }
-    if (overlay) return
+  // draws its own affordance. Transient surfaces register as back layers so
+  // they're dismissed one press at a time; the step machine below is the
+  // fallback for when there's nothing overlaid.
+  useBackHandler(!!overlay, () => {})            // modal — swallow, don't skip past it
+  useBackHandler(backgrounded, () => {})         // already at the home screen
+  useBackHandler(locked, () => setLocked(false))
+
+  const systemBack = () => handleSystemBack(() => {
     if (step === 'review') { setStep('record'); return }
-    if (step === 'record') { setLocked(false); setStep('review'); return }
+    // NOT "stop and go to review": back from the root of a task backgrounds
+    // the app, and the foreground service keeps the mic open. Stopping the
+    // recording here would contradict the capability this whole flow is
+    // built to demonstrate.
+    if (step === 'record') { setBackgrounded(true); return }
     if (step === 'consent') {
       if (deepLink) { window.location.href = entryPointHref } else { setStep('template') }
       return
     }
     if (step === 'template') { setStep('customer'); return }
     window.location.href = entryPointHref
-  }
+  })
 
   return (
     <>
@@ -820,6 +876,10 @@ export default function App() {
 
           {locked && step === 'record' && (
             <LockScreen customer={customer} seconds={seconds} onUnlock={() => setLocked(false)} />
+          )}
+
+          {backgrounded && step === 'record' && (
+            <BackgroundedScreen customer={customer} seconds={seconds} onReturn={() => setBackgrounded(false)} />
           )}
 
           {overlay && (

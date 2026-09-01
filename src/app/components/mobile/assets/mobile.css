@@ -80,6 +80,58 @@ html, body {
   justify-content: space-between;
   padding: 0 28px 0 24px;
   flex-shrink: 0;
+  /* Anchors the Dynamic Island / hole-punch camera, both centred cut-outs
+     that sit outside the clock/icons flex flow. */
+  position: relative;
+}
+
+/* ── Dynamic Island (iOS) ───────────────────────────────────────────
+   The cut-out is physically black whatever colour the app paints behind
+   it, so it stays #000 on the brand purple rather than tinting. Sized
+   against the 393px frame at roughly true proportions (~126pt wide on a
+   393pt-wide iPhone Pro). */
+.status-island {
+  position: absolute;
+  left: 50%;
+  top: 6px;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 32px;
+  border-radius: 999px;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  transition: width 0.3s cubic-bezier(0.2, 0, 0, 1), padding 0.3s cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Compact Live Activity — what the island actually does during a
+   background recording: a leading glyph and a trailing live timer, with
+   the pill widening to make room. The iOS counterpart to Android's green
+   mic privacy indicator. */
+.status-island--live {
+  width: 148px;
+  padding: 0 12px;
+}
+.status-island-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--rag-red-red-overdue);
+  flex-shrink: 0;
+  animation: cbIslandPulse 1.6s ease-in-out infinite;
+}
+@keyframes cbIslandPulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+.status-island-timer {
+  font-family: Barlow, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Wraps the clock (and, on Android only, the notification icons that sit

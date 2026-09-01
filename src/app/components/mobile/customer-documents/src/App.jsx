@@ -3,6 +3,7 @@ import StatusBar from '../../assets/StatusBar'
 import ScreenSlider from '../../assets/ScreenSlider'
 import PhoneFrame from '../../assets/PhoneFrame'
 import CareBridgeIcon from '../../assets/CareBridgeIcon'
+import { handleSystemBack, useBackHandler } from '../../assets/backStack'
 import {
   CUSTOMER, ASSESSMENTS, ASSESSMENT_FOLDERS, OPTIONAL_ASSESSMENT_TEMPLATES,
   OTHER_DOCUMENTS, OTHER_DOCUMENT_FOLDERS, DOCUMENT_TEMPLATES,
@@ -1151,6 +1152,16 @@ function AssessmentsScreen({ assessments, setAssessments, folders, setFolders, o
       return true
     })
 
+  // Android system back, one layer per press. Declared outermost-first so
+  // that if several are somehow open at once the innermost still pops
+  // first (the stack is LIFO, and effects register in declaration order).
+  useBackHandler(!!folderId, closeFolder)
+  useBackHandler(sel.selecting, sel.toggleSelecting)
+  useBackHandler(addAssessment.active, addAssessment.close)
+  useBackHandler(!!sheet, () => setSheet(null))
+  useBackHandler(sel.pickerOpen, () => sel.setPickerOpen(false))
+  useBackHandler(sf.drawerOpen, () => sf.setDrawerOpen(false))
+
   return (
     <>
       <ScreenSlider
@@ -1480,6 +1491,19 @@ function OtherDocumentsScreen({ documents, setDocuments, folders, setFolders, on
       return true
     })
 
+  // Android system back, one layer per press — see the matching block in
+  // AssessmentsScreen. This screen has two extra layers: the 3-step "Add
+  // document" flow (template picker → name prompt → preview), where back
+  // has to step back through each stage rather than abandoning the lot.
+  useBackHandler(!!folderId, closeFolder)
+  useBackHandler(sel.selecting, sel.toggleSelecting)
+  useBackHandler(templatePicker.active, templatePicker.close)
+  useBackHandler(docPreview.active, handleCancelDocPreview)
+  useBackHandler(namePromptOpen, handleCancelDocName)
+  useBackHandler(!!sheet, () => setSheet(null))
+  useBackHandler(sel.pickerOpen, () => sel.setPickerOpen(false))
+  useBackHandler(sf.drawerOpen, () => sf.setDrawerOpen(false))
+
   return (
     <>
       <ScreenSlider
@@ -1715,16 +1739,15 @@ export default function App() {
     closeTimeoutRef.current = setTimeout(() => setRenderedSection(null), 300)
   }
 
-  // Android's system back, unwinding the modal layers this component owns
-  // (CareBridge picker, then the section sheet) before leaving the app.
-  // Levels nested deeper — folder drill-down, "Add assessment" — are owned
-  // by the section screens' own state and aren't reachable from here; on a
-  // real build those would each register their own back handler.
-  const systemBack = () => {
-    if (careBridgeSelect.active) { careBridgeSelect.close(); return }
-    if (section !== null) { closeSection(); return }
-    window.location.href = '/'
-  }
+  // This component's own two layers. Everything nested deeper registers
+  // itself from inside the section screens (see their useBackHandler
+  // blocks), so back pops exactly one layer per press wherever you are.
+  useBackHandler(section !== null, closeSection)
+  useBackHandler(careBridgeSelect.active, careBridgeSelect.close)
+
+  // Nothing left to dismiss — on a real device this is where the app would
+  // drop to the home screen.
+  const systemBack = () => handleSystemBack(() => { window.location.href = '/' })
 
   return (
     <>

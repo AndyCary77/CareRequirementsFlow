@@ -3,6 +3,7 @@ import PhoneFrame from '../../assets/PhoneFrame'
 import StatusBar from '../../assets/StatusBar'
 import AppHeader from '../../assets/AppHeader'
 import CareBridgeIcon from '../../assets/CareBridgeIcon'
+import { usePlatform } from '../../assets/platform'
 import arthurImg from '../../assets/img/Customer=Arthur.png'
 import davidImg from '../../assets/img/Customer=David Farrington.png'
 import jimImg from '../../assets/img/Customer=Jim McLean.png'
@@ -389,6 +390,7 @@ function TemplateScreen({ customer, onBack, onPick }) {
 
 function ConsentScreen({ customer, template, docsLabel, consent, setConsent, onBack, onStart }) {
   const first = customer?.name.split(' ')[0] || 'the customer'
+  const [platform] = usePlatform()
   const [micTest, setMicTest] = useState('idle') // idle | testing | ok
   // The screen stays mounted across a template switch (all steps render in a
   // single sliding track), so reset the test whenever a fresh visit begins.
@@ -415,7 +417,18 @@ function ConsentScreen({ customer, template, docsLabel, consent, setConsent, onB
           </div>
           <div className="cb-cpoint">
             <LockIcon />
-            <div><div className="cb-cpoint-t">Keeps recording</div><div className="cb-cpoint-d">Through screen lock, backgrounding and calls. Works offline.</div></div>
+            <div>
+              <div className="cb-cpoint-t">Keeps recording</div>
+              {/* iOS sustains this with a Live Activity; Android needs a
+                  foreground service, which by design always surfaces an
+                  ongoing notification the reviewer can stop it from. Worth
+                  saying plainly, since it's what they'll actually see. */}
+              <div className="cb-cpoint-d">
+                {platform === 'android'
+                  ? 'Through screen lock and other apps, with a notification you can stop it from. Works offline.'
+                  : 'Through screen lock, backgrounding and calls. Works offline.'}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -455,12 +468,15 @@ function ConsentScreen({ customer, template, docsLabel, consent, setConsent, onB
 
 function RecordScreen({ customer, template, docsLabel, seconds, states, onEnd, onLock }) {
   const first = customer?.name.split(' ')[0] || 'the customer'
+  const [platform] = usePlatform()
   const totalFields = sumFields(states, 'fields')
   const capturedFields = sumFields(states, 'captured')
   const pct = totalFields ? Math.round((capturedFields / totalFields) * 100) : 0
   return (
     <div className="cb-screen cb-screen-record">
-      <StatusBar />
+      {/* Android shows an OS-level green mic indicator whenever the mic is
+          open — the one screen where that's actually true. */}
+      <StatusBar recording />
       <AppHeader
         title={docsLabel || 'Recording'}
         right={<button className="app-header-action" onClick={onLock} aria-label="Lock screen"><LockIcon /></button>}
@@ -489,7 +505,9 @@ function RecordScreen({ customer, template, docsLabel, seconds, states, onEnd, o
 
         <button className="cb-rec-note" onClick={onLock}>
           <LockIcon />
-          Keeps recording through screen lock and calls — tap to preview
+          {platform === 'android'
+            ? 'Keeps recording in the background — controls stay in your notifications'
+            : 'Keeps recording through screen lock and calls — tap to preview'}
         </button>
       </div>
       <div className="cb-footer">
@@ -501,9 +519,58 @@ function RecordScreen({ customer, template, docsLabel, seconds, states, onEnd, o
   )
 }
 
-// Simulated iOS lock screen — shows recording persists discreetly when the
-// phone is set down and locked (tap anywhere to unlock).
+// Simulated lock screen — shows the recording persists discreetly once the
+// phone is set down and locked.
+//
+// This is the one screen where the two platforms genuinely diverge rather
+// than just look different. iOS keeps a background recording alive with a
+// Live Activity — a frosted, glanceable pill that carries no controls.
+// Android requires a foreground service to hold the mic, and the OS
+// *mandates* that service post an ongoing notification, conventionally
+// with its own actions. So Android gets a real notification card with
+// Pause/Stop on it, plus the green mic privacy indicator. Same moment in
+// the flow, materially different affordances.
 function LockScreen({ customer, seconds, onUnlock }) {
+  const [platform] = usePlatform()
+  if (platform === 'android') {
+    return (
+      <div className="cb-lock cb-lock--android" onClick={onUnlock}>
+        <div className="cb-lock-android-status">
+          <span className="cb-lock-android-mic" title="Microphone in use">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 15a3 3 0 003-3V6a3 3 0 10-6 0v6a3 3 0 003 3zm7-3a7 7 0 01-6 6.92V22h-2v-3.08A7 7 0 015 12h2a5 5 0 0010 0h2z"/>
+            </svg>
+          </span>
+        </div>
+
+        <div className="cb-lock-clock cb-lock-clock--android">
+          <div className="cb-lock-time">9:41</div>
+          <div className="cb-lock-date">Thu, 17 July</div>
+        </div>
+
+        {/* Material notification, not a Live Activity — app row, content,
+            then the actions the foreground service is required to expose. */}
+        <div className="cb-lock-notif" onClick={e => e.stopPropagation()}>
+          <div className="cb-lock-notif-app">
+            <span className="cb-lock-notif-icon"><CareBridgeIcon size={12} /></span>
+            <span className="cb-lock-notif-appname">CareBridge</span>
+            <span className="cb-lock-notif-sep">•</span>
+            <span className="cb-lock-notif-elapsed">{fmt(seconds)}</span>
+          </div>
+          <div className="cb-lock-notif-title">Recording assessment</div>
+          <div className="cb-lock-notif-body">{customer?.name || 'Assessment'}</div>
+          <div className="cb-lock-notif-actions">
+            <button type="button" className="cb-lock-notif-action">Pause</button>
+            <button type="button" className="cb-lock-notif-action">Stop</button>
+          </div>
+        </div>
+
+        <div className="cb-lock-bottom">
+          <div className="cb-lock-hint">Swipe up to unlock</div>
+        </div>
+      </div>
+    )
+  }
   return (
     <div className="cb-lock" onClick={onUnlock}>
       <div className="cb-lock-top"><LockIcon /></div>
@@ -699,10 +766,30 @@ export default function App() {
   const pickTemplate = (t) => { setTemplate(t); setExtraTemplates([]); setConsent(false); setSeconds(0); setTitle(''); setStep('consent') }
   const finish = () => { setOverlay('uploading'); setTimeout(() => setOverlay('done'), 1700) }
 
+  // Android's system back exists on every screen whether or not the app
+  // draws its own affordance, so it has to mean something everywhere —
+  // this mirrors each step's in-app back. Two deliberate choices: on
+  // 'record' it goes to review rather than exiting, since silently
+  // discarding a live recording is exactly the failure an Android build
+  // has to guard against; and while the lock screen or an overlay is up,
+  // back dismisses that first, as it would natively.
+  const systemBack = () => {
+    if (locked) { setLocked(false); return }
+    if (overlay) return
+    if (step === 'review') { setStep('record'); return }
+    if (step === 'record') { setLocked(false); setStep('review'); return }
+    if (step === 'consent') {
+      if (deepLink) { window.location.href = entryPointHref } else { setStep('template') }
+      return
+    }
+    if (step === 'template') { setStep('customer'); return }
+    window.location.href = entryPointHref
+  }
+
   return (
     <>
       <a href="/" className="back-link"><ChevronLeftIcon size={16} /> Prototypes</a>
-      <PhoneFrame>
+      <PhoneFrame onSystemBack={systemBack}>
         <div className={`screen-area page-slide ${entering ? 'slide-entering' : ''}`}>
           <div className="cb-track" style={{ width: `${STEPS.length * 100}%`, transform: `translateX(-${idx * (100 / STEPS.length)}%)` }}>
             <div className="cb-track-item" style={{ width: `${100 / STEPS.length}%` }}>
@@ -754,12 +841,17 @@ export default function App() {
                       CareBridge has drafted {customer?.name.split(' ')[0]}’s {docsLabel}.
                       Write up the care plan, risk assessments and templates in PASS.
                     </div>
-                    <button
-                      className="round-btn primary-btn cb-full-btn"
-                      onClick={() => { window.location.href = entryPointHref }}
-                    >
-                      Done
-                    </button>
+                    {/* iOS gets a full-width filled button; Material puts a
+                        dialog's action as a text button in a bottom-end row.
+                        Same handler either way — see .cb-overlay-actions. */}
+                    <div className="cb-overlay-actions">
+                      <button
+                        className="round-btn primary-btn cb-full-btn"
+                        onClick={() => { window.location.href = entryPointHref }}
+                      >
+                        Done
+                      </button>
+                    </div>
                   </>
                 )}
               </div>

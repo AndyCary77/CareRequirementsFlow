@@ -1,0 +1,576 @@
+/* ═══════════════════════════════════════════════════════════════
+   Android platform layer
+
+   Everything here is scoped to [data-platform="android"], stamped on
+   <html> by assets/platform.js before first paint. The iOS look is the
+   untouched baseline in mobile.css / main.css / each app's own stylesheet;
+   this file only states the differences.
+
+   Brand deliberately survives the switch: PASS purple and Barlow stay put
+   on both platforms. A real Android build of this app would keep its brand
+   and adopt Android *conventions* — it wouldn't repaint itself in Material
+   baseline colours. So what changes here is layout, shape, motion,
+   affordance and component anatomy, not palette.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Platform toggle (dev affordance, shown on both platforms) ──────
+   Fixed rather than in .phone-wrap's flex flow, so it can't shift the
+   phone frame off-centre. Bottom-centre clears the bottom-left
+   "← Prototypes" link. */
+.platform-toggle {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
+}
+.platform-toggle-btn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 7px 18px;
+  border-radius: 999px;
+  font-family: Barlow, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--greyscale-5-grey-45);
+  transition: background 0.15s, color 0.15s;
+}
+.platform-toggle-btn:hover { color: var(--brand-purple-6-purple-4); }
+.platform-toggle-btn.is-active {
+  background: var(--brand-purple-6-purple-4);
+  color: #fff;
+}
+
+/* ── Device shell ──────────────────────────────────────────────────
+   Same 393×852 as iOS on purpose: identical content area means nothing
+   reflows between platforms and the two can be compared honestly. Only
+   the shell's own character changes — Android handsets have a tighter
+   corner radius and a flatter, single-tone bezel than the iPhone's
+   black-plus-titanium band. */
+[data-platform="android"] .phone-frame {
+  border-radius: 28px;
+  box-shadow:
+    0 0 0 11px #202124,
+    0 40px 80px rgba(0, 0, 0, 0.45);
+}
+
+/* ── Status bar ────────────────────────────────────────────────────
+   Android hangs notification icons off the clock and centres a
+   hole-punch camera, where iOS keeps the left side clear and implies a
+   notch/Dynamic Island. */
+[data-platform="android"] .status-bar {
+  padding: 0 14px 0 16px;
+  position: relative;
+}
+[data-platform="android"] .status-notif-icons {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: rgba(255, 255, 255, 0.9);
+}
+[data-platform="android"] .status-punch-hole {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #000;
+  opacity: 0.85;
+}
+/* Android 12+ shows this whenever an app holds the mic open — a real OS
+   behaviour, and a meaningful one for a flow whose whole pitch is that it
+   keeps recording after you put the phone down. */
+[data-platform="android"] .status-mic-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-right: 2px;
+  border-radius: 50%;
+  background: var(--rag-green-green-5);
+  color: #fff;
+}
+
+/* ── System navigation bar (Android only) ──────────────────────────
+   The structural difference from iOS: back is a system-level action
+   present on every screen, not just an in-app header affordance. Sits as
+   the last child of .phone-frame (already column flex), so it takes real
+   estate off .screen-area exactly like the real thing. */
+.sys-nav {
+  height: 44px;
+  flex-shrink: 0;
+  background: #f1f1f4;
+  border-top: 1px solid rgba(0, 0, 0, 0.07);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 44px;
+}
+.sys-nav-btn {
+  background: none;
+  border: none;
+  padding: 8px;
+  border-radius: 50%;
+  color: #3c4043;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.sys-nav-btn:hover:not(:disabled) { background: rgba(0, 0, 0, 0.07); }
+.sys-nav-btn:disabled { opacity: 0.35; cursor: default; }
+
+/* ── Top app bar ───────────────────────────────────────────────────
+   Material left-aligns the title beside the back arrow; iOS optically
+   centres it. AppHeader.jsx drops its trailing spacer on Android so this
+   alignment isn't fighting an empty balancing div. */
+[data-platform="android"] .app-header-title {
+  text-align: left;
+  margin-left: 18px;
+  font-size: 20px;
+  font-weight: 500;
+}
+[data-platform="android"] .app-header {
+  padding: 0 12px 14px 16px;
+}
+[data-platform="android"] .app-header-action { border-radius: 50%; }
+
+/* ── Touch feedback ────────────────────────────────────────────────
+   Material's ripple in place of iOS's opacity/background dim. A single
+   expanding radial on :active is enough to read correctly at prototype
+   fidelity — a true ripple originates at the touch point, which needs JS
+   per-press and buys nothing here. */
+[data-platform="android"] .cb-crow,
+[data-platform="android"] .cb-trow,
+[data-platform="android"] .docs-section-row,
+[data-platform="android"] .docs-doc-row,
+[data-platform="android"] .docs-folder-picker-item,
+[data-platform="android"] .round-btn,
+[data-platform="android"] .docs-fab {
+  position: relative;
+  overflow: hidden;
+}
+[data-platform="android"] .cb-crow::after,
+[data-platform="android"] .cb-trow::after,
+[data-platform="android"] .docs-section-row::after,
+[data-platform="android"] .docs-doc-row::after,
+[data-platform="android"] .docs-folder-picker-item::after,
+[data-platform="android"] .round-btn::after,
+[data-platform="android"] .docs-fab::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, currentColor 12%, transparent 12.5%) center / 220% 220% no-repeat;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s, background-size 0.35s;
+}
+[data-platform="android"] .cb-crow:active::after,
+[data-platform="android"] .cb-trow:active::after,
+[data-platform="android"] .docs-section-row:active::after,
+[data-platform="android"] .docs-doc-row:active::after,
+[data-platform="android"] .docs-folder-picker-item:active::after,
+[data-platform="android"] .round-btn:active::after,
+[data-platform="android"] .docs-fab:active::after {
+  opacity: 0.16;
+  background-size: 0 0;
+  transition: none;
+}
+
+/* ── Lists ─────────────────────────────────────────────────────────
+   Material uses trailing chevrons sparingly — the ripple carries the
+   "this is tappable" signal instead. iOS leans on the disclosure chevron,
+   so it stays there. */
+[data-platform="android"] .cb-crow-chev,
+[data-platform="android"] .docs-section-row-chevron {
+  display: none;
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────
+   M3 buttons are fully rounded too, so .round-btn's pill carries over.
+   What differs is weight and elevation: filled Material buttons sit
+   slightly tighter with a subtle lift. */
+[data-platform="android"] .round-btn {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 11px 24px;
+}
+[data-platform="android"] .primary-btn {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+[data-platform="android"] .primary-btn:disabled { box-shadow: none; }
+/* Material's outlined button is a 1px hairline, not iOS's heavier 2px. */
+[data-platform="android"] .secondary-btn { border-width: 1px; }
+
+/* ── FAB ───────────────────────────────────────────────────────────
+   The clearest tell in the whole set: iOS has no FAB concept at all, so
+   the shared bottom-centre pill becomes a proper bottom-end Extended FAB.
+   .docs-fab-wrap also anchors the FAB *menu* and the selection bar, so
+   they follow it across rather than being repositioned separately. */
+[data-platform="android"] .docs-fab-wrap {
+  left: auto;
+  right: 16px;
+  bottom: 16px;
+  align-items: flex-end;
+}
+[data-platform="android"] .docs-fab {
+  border-radius: 16px;
+  padding: 15px 20px;
+  text-transform: none;
+  letter-spacing: 0.01em;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.22);
+}
+[data-platform="android"] .docs-fab-menu {
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.26);
+}
+
+/* ── Selection controls ────────────────────────────────────────────
+   Material's checkbox is a hard-edged square with a 2px radius; the
+   browser default that iOS happily inherits is rounder and softer. */
+[data-platform="android"] .docs-doc-row-checkbox input,
+[data-platform="android"] .docs-filter-row input[type="checkbox"],
+[data-platform="android"] .docs-cb-select-all input {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--greyscale-6-grey-50);
+  border-radius: 2px;
+  background: #fff;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+[data-platform="android"] .docs-doc-row-checkbox input:checked,
+[data-platform="android"] .docs-filter-row input[type="checkbox"]:checked,
+[data-platform="android"] .docs-cb-select-all input:checked {
+  background: var(--brand-purple-6-purple-4);
+  border-color: var(--brand-purple-6-purple-4);
+}
+[data-platform="android"] .docs-doc-row-checkbox input:checked::after,
+[data-platform="android"] .docs-filter-row input[type="checkbox"]:checked::after,
+[data-platform="android"] .docs-cb-select-all input:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 0.5px;
+  width: 4px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* M3 switch — wider track, thumb grows and gains a check when on. The iOS
+   original is a straight UISwitch clone (48×28, 24px thumb). */
+[data-platform="android"] .tog {
+  width: 52px;
+  height: 32px;
+  border-radius: 16px;
+  background: var(--greyscale-13-grey-90);
+  border: 2px solid var(--greyscale-9-grey-70);
+  box-sizing: border-box;
+}
+[data-platform="android"] .tog.tog-on { border-color: var(--brand-purple-6-purple-4); }
+[data-platform="android"] .tog-thumb {
+  width: 16px;
+  height: 16px;
+  top: 6px;
+  left: 6px;
+  background: var(--greyscale-6-grey-50);
+  box-shadow: none;
+  transition: transform 0.2s, width 0.2s, height 0.2s, top 0.2s, left 0.2s, background 0.2s;
+}
+[data-platform="android"] .tog-on .tog-thumb {
+  width: 24px;
+  height: 24px;
+  top: 2px;
+  left: 2px;
+  background: #fff;
+  transform: translateX(20px);
+}
+
+/* ── Sheets & dialogs ──────────────────────────────────────────────
+   M3 bottom sheets use a larger 28dp top radius. The drag handle is
+   correct on both platforms, so it stays. */
+[data-platform="android"] .docs-sheet-panel {
+  border-radius: 28px 28px 0 0;
+}
+
+/* ═══ CareBridge-specific ══════════════════════════════════════════ */
+
+/* ── Lock screen (Android) ─────────────────────────────────────────
+   The markup for this lives in carebridge/src/App.jsx's LockScreen, which
+   branches rather than re-skins — see the note there. Android's
+   foreground-service notification is a real card with real actions, not
+   iOS's controls-free Live Activity pill. */
+.cb-lock--android {
+  justify-content: flex-start;
+  padding: 0 16px 20px;
+}
+.cb-lock-android-status {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 4px 0;
+  box-sizing: border-box;
+}
+.cb-lock-android-mic {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--rag-green-green-5);
+  color: #fff;
+}
+/* Android's lock clock is left-aligned and lighter-weight than the
+   centred, heavy iOS one. */
+.cb-lock-clock--android {
+  width: 100%;
+  text-align: left;
+  margin-top: 34px;
+}
+.cb-lock-clock--android .cb-lock-time {
+  font-size: 62px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+.cb-lock-clock--android .cb-lock-date {
+  font-size: 15px;
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+.cb-lock-notif {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 40px;
+  padding: 14px 16px 8px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--greyscale-2-grey-20);
+  cursor: default;
+}
+.cb-lock-notif-app {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: Barlow, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--greyscale-4-grey-40);
+}
+.cb-lock-notif-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--brand-purple-6-purple-4);
+  color: #fff;
+  flex-shrink: 0;
+}
+.cb-lock-notif-sep { opacity: 0.6; }
+.cb-lock-notif-elapsed { font-variant-numeric: tabular-nums; }
+.cb-lock-notif-title {
+  font-family: Barlow, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  margin-top: 8px;
+}
+.cb-lock-notif-body {
+  font-family: Barlow, sans-serif;
+  font-size: 14px;
+  color: var(--greyscale-4-grey-40);
+  margin-top: 2px;
+}
+/* The controls Android requires an ongoing foreground-service notification
+   to surface — the substantive difference from the iOS lock screen. */
+.cb-lock-notif-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  padding-top: 4px;
+}
+.cb-lock-notif-action {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-family: Barlow, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--brand-purple-5-purple-3);
+  transition: background 0.15s;
+}
+.cb-lock-notif-action:hover { background: rgba(0, 0, 0, 0.06); }
+
+[data-platform="android"] .cb-lock--android .cb-lock-hint {
+  font-size: 12px;
+  text-align: center;
+  width: 100%;
+}
+
+/* ── Consent checkbox ──────────────────────────────────────────────
+   iOS uses a circular check; Material's is a square with a 2dp radius.
+   The surrounding card keeps its green confirmed state — that's brand
+   feedback, not a platform convention. */
+[data-platform="android"] .cb-consent-confirm .cb-check {
+  border-radius: 2px;
+  border-width: 2px;
+}
+
+/* ── Search field ──────────────────────────────────────────────────
+   M3 search is a fully-rounded filled surface, versus iOS's 10px
+   squircle. */
+[data-platform="android"] .cb-search,
+[data-platform="android"] .docs-search-input-wrap {
+  border-radius: 999px;
+  border-color: transparent;
+  background: var(--ui-purple-6-lavendar-grey);
+}
+[data-platform="android"] .docs-filter-btn { border-radius: 50%; }
+
+/* ── Dialogs ───────────────────────────────────────────────────────
+   M3 dialog: 28dp corners, and the action as a text button in a
+   bottom-end row rather than iOS's full-width filled button. */
+[data-platform="android"] .cb-overlay-card {
+  border-radius: 28px;
+  padding: 24px;
+}
+.cb-overlay-actions {
+  width: 100%;
+}
+[data-platform="android"] .cb-overlay-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+[data-platform="android"] .cb-overlay-actions .round-btn {
+  width: auto;
+  background: none;
+  color: var(--brand-purple-5-purple-3);
+  box-shadow: none;
+  padding: 10px 12px;
+}
+[data-platform="android"] .cb-overlay-actions .round-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* ── Outlined text field (review screen's recording title) ─────────
+   Material's notched outline with the label sitting in the gap — one of
+   the most recognisable Android form patterns, versus the iOS stacked
+   label-above-field. */
+[data-platform="android"] .cb-title-field {
+  position: relative;
+  margin-top: 8px;
+}
+[data-platform="android"] .cb-title-field label {
+  position: absolute;
+  top: -7px;
+  left: 12px;
+  z-index: 1;
+  margin: 0;
+  padding: 0 4px;
+  /* Must match .cb-body's surface so the label reads as sitting in a gap
+     cut out of the outline, which is the whole point of the pattern. */
+  background: var(--ui-purple-7-lightest-lavendar);
+  font-size: 12px;
+  color: var(--brand-purple-5-purple-3);
+}
+[data-platform="android"] .cb-title-field input {
+  border: 1px solid var(--brand-purple-5-purple-3);
+  border-radius: 4px;
+  padding: 14px 14px 12px;
+}
+[data-platform="android"] .cb-title-field input:focus {
+  outline: none;
+  border-width: 2px;
+  padding: 13px 13px 11px;
+}
+
+/* ═══ Customer Documents-specific ══════════════════════════════════ */
+
+/* ── Alert dialog ──────────────────────────────────────────────────
+   The iOS original is an explicit UIAlertController clone — 270px, centred
+   text, hairline-divided Cancel|OK side by side. Its DOM order (title,
+   field, Cancel, OK) already matches Material's, so only styling changes:
+   28dp corners, left-aligned title, and text buttons in a bottom-end row
+   with no dividers. */
+[data-platform="android"] .docs-alert-box {
+  width: 300px;
+  background: #fff;
+  border-radius: 28px;
+  text-align: left;
+  padding: 24px 24px 16px;
+  box-sizing: border-box;
+}
+[data-platform="android"] .docs-alert-title {
+  padding: 0 0 14px;
+  font-size: 20px;
+  font-weight: 500;
+}
+[data-platform="android"] .docs-alert-input {
+  margin: 0;
+  border-width: 0 0 1px;
+  border-radius: 4px 4px 0 0;
+  background: var(--ui-purple-7-lightest-lavendar);
+  padding: 12px;
+}
+[data-platform="android"] .docs-alert-input:focus {
+  outline: none;
+  border-bottom: 2px solid var(--brand-purple-6-purple-4);
+}
+[data-platform="android"] .docs-alert-actions {
+  border-top: none;
+  justify-content: flex-end;
+  gap: 4px;
+  padding-top: 18px;
+}
+[data-platform="android"] .docs-alert-btn {
+  flex: 0 0 auto;
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  transition: background 0.15s;
+}
+[data-platform="android"] .docs-alert-btn:first-child { border-right: none; }
+[data-platform="android"] .docs-alert-btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* ── Motion ────────────────────────────────────────────────────────
+   Material's shared-axis X: a short translate paired with a fade, on
+   emphasised easing — versus iOS's full-width push with a −25% parallax
+   on the outgoing screen. Applied to the shared .screen-slide only;
+   carebridge's bespoke N-wide .cb-track is left structurally alone. */
+[data-platform="android"] .screen-slide {
+  transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1), opacity 0.2s linear;
+}
+[data-platform="android"] .screen-slide.slide-active { opacity: 1; }
+[data-platform="android"] .screen-slide.slide-out-left {
+  transform: translateX(-8%);
+  opacity: 0;
+}
+[data-platform="android"] .screen-slide.slide-out-right {
+  transform: translateX(8%);
+  opacity: 0;
+}

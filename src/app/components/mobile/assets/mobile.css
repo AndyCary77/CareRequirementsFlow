@@ -82,6 +82,14 @@ html, body {
   flex-shrink: 0;
 }
 
+/* Wraps the clock (and, on Android only, the notification icons that sit
+   beside it — iOS never shows notifications in its status bar). */
+.status-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
 .status-time {
   font-family: Barlow, sans-serif;
   font-size: 15px;

@@ -1715,10 +1715,21 @@ export default function App() {
     closeTimeoutRef.current = setTimeout(() => setRenderedSection(null), 300)
   }
 
+  // Android's system back, unwinding the modal layers this component owns
+  // (CareBridge picker, then the section sheet) before leaving the app.
+  // Levels nested deeper — folder drill-down, "Add assessment" — are owned
+  // by the section screens' own state and aren't reachable from here; on a
+  // real build those would each register their own back handler.
+  const systemBack = () => {
+    if (careBridgeSelect.active) { careBridgeSelect.close(); return }
+    if (section !== null) { closeSection(); return }
+    window.location.href = '/'
+  }
+
   return (
     <>
       <a href="/" className="back-link"><ChevronLeftIcon size={16} /> Prototypes</a>
-      <PhoneFrame>
+      <PhoneFrame onSystemBack={systemBack}>
         <div className="screen-area">
           <DocumentsRootScreen onOpenSection={openSection} onOpenCareBridge={careBridgeSelect.open} />
           {/* Assessments/Other Documents/Incidents present as a modal sheet

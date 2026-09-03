@@ -529,21 +529,34 @@
 }
 .cb-overlay-actions {
   width: 100%;
+  /* iOS: stacked full-width buttons (matches the finish overlay's single-
+     button case, and Review's own Resume/Finish stack) — this only takes
+     effect when there's more than one action, e.g. the delete confirm. */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 [data-platform="android"] .cb-overlay-actions {
-  display: flex;
+  flex-direction: row;
   justify-content: flex-end;
   margin-top: 4px;
 }
 [data-platform="android"] .cb-overlay-actions .round-btn {
   width: auto;
   background: none;
+  border: none;
   color: var(--brand-purple-5-purple-3);
   box-shadow: none;
   padding: 10px 12px;
 }
 [data-platform="android"] .cb-overlay-actions .round-btn:hover {
   background: rgba(0, 0, 0, 0.06);
+}
+/* The destructive action keeps red on both platforms — Material dialogs
+   commonly colour a destructive text action distinctly from a neutral one
+   for exactly this reason, and iOS's own alerts do the same. */
+[data-platform="android"] .cb-overlay-actions .cb-delete-confirm-btn {
+  color: var(--rag-red-red-overdue);
 }
 
 /* ── Outlined text field (review screen's recording title) ─────────

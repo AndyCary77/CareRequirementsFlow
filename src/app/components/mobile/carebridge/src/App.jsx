@@ -27,9 +27,10 @@ const CheckIcon = () => (
     <path d="M5 12l4.5 4.5L19 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 )
-const StopIcon = ({ size = 20 }) => (
+const PauseIcon = ({ size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-    <rect x="6" y="6" width="12" height="12" rx="2"/>
+    <rect x="6" y="5" width="4" height="14" rx="1"/>
+    <rect x="14" y="5" width="4" height="14" rx="1"/>
   </svg>
 )
 const SearchIcon = () => (
@@ -514,7 +515,7 @@ function RecordScreen({ customer, template, docsLabel, seconds, states, onEnd, o
       </div>
       <div className="cb-footer">
         <button className="round-btn cb-end-btn cb-full-btn" onClick={onEnd}>
-          <StopIcon size={18} /> End assessment
+          <PauseIcon size={18} /> Pause recording
         </button>
       </div>
     </div>
@@ -644,7 +645,7 @@ function BackgroundedScreen({ customer, seconds, onReturn }) {
 
 // ─── Screen 5: end-of-visit coverage check ───────────────────
 
-function ReviewScreen({ customer, template, seconds, states, title, setTitle, onResume, onFinish }) {
+function ReviewScreen({ customer, template, seconds, states, title, setTitle, onResume, onFinish, onDelete }) {
   const groups = groupStates(states)
   const totalFields = sumFields(states, 'fields')
   const capturedFields = sumFields(states, 'captured')
@@ -718,6 +719,14 @@ function ReviewScreen({ customer, template, seconds, states, title, setTitle, on
         <button className="round-btn primary-btn cb-full-btn" onClick={onFinish}>
           Finish and Send
         </button>
+        {/* A distinct action, not the consent checkbox re-surfaced and
+            unticked — see memory: carebridge-delete-recording for why.
+            Deliberately quiet relative to the two buttons above: this is
+            the rare, destructive path, not a third equally-weighted
+            choice. */}
+        <button type="button" className="cb-delete-link" onClick={onDelete}>
+          Delete recording
+        </button>
       </div>
     </div>
   )
@@ -749,6 +758,13 @@ export default function App() {
   // the timer running underneath, which is the whole point.
   const [backgrounded, setBackgrounded] = useState(false)
   const [overlay, setOverlay] = useState(null) // null | 'uploading' | 'done'
+  // Confirming a delete, requested from the paused/review screen — see
+  // memory: carebridge-delete-recording for why this is its own button
+  // rather than the consent checkbox re-surfaced and unticked. A separate
+  // piece of state from `overlay` above: unrelated concerns (finishing vs.
+  // discarding), and this one needs a Cancel path back to Review rather
+  // than always resolving forward.
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [entering] = useState(() =>
     new URLSearchParams(window.location.search).get('transition') === '1'
   )
@@ -870,7 +886,7 @@ export default function App() {
               <RecordScreen customer={customer} template={template} docsLabel={docsLabel} seconds={seconds} states={recStates} onEnd={() => { setLocked(false); setStep('review') }} onLock={() => setLocked(true)} />
             </div>
             <div className="cb-track-item" style={{ width: `${100 / STEPS.length}%` }}>
-              <ReviewScreen customer={customer} template={template} seconds={seconds} states={finalStates} title={title} setTitle={setTitle} onResume={() => setStep('record')} onFinish={finish} />
+              <ReviewScreen customer={customer} template={template} seconds={seconds} states={finalStates} title={title} setTitle={setTitle} onResume={() => setStep('record')} onFinish={finish} onDelete={() => setConfirmingDelete(true)} />
             </div>
           </div>
 
@@ -914,6 +930,39 @@ export default function App() {
                     </div>
                   </>
                 )}
+              </div>
+            </div>
+          )}
+
+          {confirmingDelete && (
+            <div className="cb-overlay">
+              <div className="cb-overlay-card">
+                <div className="cb-overlay-title">Delete this recording?</div>
+                <div className="cb-overlay-text">
+                  This can't be undone. Nothing will be sent to PASS.
+                </div>
+                {/* Same iOS-stacked / Android-text-row pattern as the finish
+                    overlay's own .cb-overlay-actions, just with two actions
+                    instead of one. Delete is deliberately not the button in
+                    the "primary" position either platform's eye lands on
+                    first (bottom of an iOS stack, trailing on an Android
+                    row) — Cancel is. */}
+                <div className="cb-overlay-actions">
+                  <button
+                    type="button"
+                    className="round-btn secondary-btn cb-full-btn"
+                    onClick={() => setConfirmingDelete(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="round-btn cb-full-btn cb-delete-confirm-btn"
+                    onClick={() => { window.location.href = entryPointHref }}
+                  >
+                    Delete recording
+                  </button>
+                </div>
               </div>
             </div>
           )}

@@ -428,6 +428,31 @@
   color: #fff;
 }
 
+/* Quiet destructive link on the paused/review screen — deliberately not a
+   third round-btn alongside Resume/Finish, which would give a rare,
+   one-way action the same visual weight as the two things you're actually
+   meant to choose between every time. */
+.cb-delete-link {
+  background: none;
+  border: none;
+  margin-top: 2px;
+  padding: 8px;
+  font-family: Barlow, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--rag-red-red-overdue);
+  cursor: pointer;
+}
+.cb-delete-link:hover { text-decoration: underline; }
+
+/* The confirm dialog's actual delete action — filled red on iOS, matching
+   .cb-end-btn's own destructive treatment; android.css turns this into a
+   red text button in the dialog's action row instead. */
+.cb-delete-confirm-btn {
+  background: var(--rag-red-red-overdue);
+  color: #fff;
+}
+
 /* ── Recording — "set it down and ignore it" ─────────────────── */
 .cb-screen-record { background: #fff; }
 

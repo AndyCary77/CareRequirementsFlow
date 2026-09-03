@@ -705,21 +705,78 @@
   color: rgba(255, 255, 255, 0.9);
 }
 
+/* A Live Activity's actual anatomy — attribution row, bold headline,
+   muted detail, then the activity's own bespoke visual — not a single
+   centred row of icon+title+timer, which reads as a notification banner
+   instead (that's the Android branch's job, in .cb-lock-notif below).
+
+   Background is a dark, near-opaque material — NOT the light white-tinted
+   glass this had before. Apple's own guidance on Lock Screen Live
+   Activities explicitly warns to "consider carefully before using a
+   custom background color and opacity" and to "test colours to be sure
+   they offer enough contrast" — a light card under white text was exactly
+   the risk that's warning about, and doesn't match how Lock Screen
+   material (notifications, widgets, Live Activities alike) actually
+   renders: dark, consistent, legible regardless of the wallpaper behind
+   it. 28px radius is coordinated with the card's own 16px padding per
+   that same guidance ("coordinate the corner radius of your content with
+   the corner radius of the Live Activity") — both scaled up from the
+   original 18px/white treatment to match the generously-rounded, opaque
+   dark card in the reference. */
 .cb-lock-activity {
   width: 100%;
   margin-top: 34px;
   display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 16px;
+  border-radius: 28px;
+  background: rgba(20, 20, 24, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* Attribution: the specific thing on the left, the app behind it on the
+   right — a Live Activity has no icon of its own in the tray the way a
+   notification does, so the app identifies itself here instead. */
+.cb-lock-activity-row {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
-  padding: 14px 16px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+}
+.cb-lock-activity-app {
+  font-family: Barlow, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.75);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cb-lock-activity-brand {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: Barlow, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.cb-lock-activity-headline {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: Barlow, sans-serif;
+  font-size: 20px;
+  font-weight: 700;
 }
 
 .cb-lock-dot {
+  align-self: center;
   width: 10px;
   height: 10px;
   border-radius: 50%;
@@ -730,27 +787,26 @@
 
 @keyframes cbPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
 
-.cb-lock-activity-main { flex: 1; min-width: 0; }
-
-.cb-lock-activity-title {
-  font-family: Barlow, sans-serif;
-  font-size: 14px;
-  font-weight: 600;
+.cb-lock-activity-timer {
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.8);
+  font-variant-numeric: tabular-nums;
 }
 
 .cb-lock-activity-sub {
   font-family: Barlow, sans-serif;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.8);
-  margin-top: 1px;
+  color: rgba(255, 255, 255, 0.7);
 }
 
-.cb-lock-activity-timer {
-  font-family: Barlow, sans-serif;
-  font-size: 18px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
+/* The waveform is built at 260px (its default size) for the record screen
+   itself — narrower than that default would look lost in a card this
+   width, so it's used as-is rather than the small variant, just centred
+   and pulled in from the default component's own top margin (the card's
+   own `gap` above already provides that spacing). */
+.cb-lock-activity .cb-live-wave {
+  align-self: center;
+  margin-top: 2px;
 }
 
 .cb-lock-bottom {

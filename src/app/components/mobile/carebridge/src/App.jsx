@@ -660,13 +660,29 @@ function LockScreen({ customer, seconds, onUnlock }) {
         <div className="cb-lock-time">9:41</div>
         <div className="cb-lock-date">Thursday 17 July</div>
       </div>
+      {/* A Live Activity, not a notification banner — the two are visually
+          distinct on iOS and this is genuinely the former (ActivityKit),
+          not a system notification that happens to persist. Same anatomy
+          every real one has: an attribution row naming both the specific
+          thing and the app behind it (an Activity has no icon of its own
+          in the tray the way a notification does, so the app still has to
+          say who it is), a bold glanceable headline, a muted detail line,
+          and — the part every Live Activity is actually built around — a
+          bespoke visual specific to what's happening (a delivery app draws
+          a route; this one reuses the same waveform "Listen back" and the
+          record screen itself use, since that's the real content of a
+          recording in a way a generic progress bar wouldn't be). */}
       <div className="cb-lock-activity">
-        <span className="cb-lock-dot" />
-        <div className="cb-lock-activity-main">
-          <div className="cb-lock-activity-title">CareBridge · Recording</div>
-          <div className="cb-lock-activity-sub">{customer?.name || 'Assessment'}</div>
+        <div className="cb-lock-activity-row">
+          <span className="cb-lock-activity-app">{customer?.name || 'Assessment'}</span>
+          <span className="cb-lock-activity-brand"><CareBridgeIcon size={12} /> CareBridge</span>
         </div>
-        <div className="cb-lock-activity-timer">{fmt(seconds)}</div>
+        <div className="cb-lock-activity-headline">
+          <span className="cb-lock-dot" />
+          Recording <span className="cb-lock-activity-timer">{fmt(seconds)}</span>
+        </div>
+        <div className="cb-lock-activity-sub">Assessment audio · captured in the background</div>
+        <LiveWaveform playing label="Recording in progress" />
       </div>
       <div className="cb-lock-bottom">
         <div className="cb-lock-hint">Tap to unlock</div>

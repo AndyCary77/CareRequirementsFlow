@@ -4,6 +4,7 @@ import StatusBar from '../../assets/StatusBar'
 import AppHeader from '../../assets/AppHeader'
 import CareBridgeIcon from '../../assets/CareBridgeIcon'
 import { usePlatform } from '../../assets/platform'
+import { addRecording } from '../../assets/recordings'
 import { handleSystemBack, useBackHandler } from '../../assets/backStack'
 import arthurImg from '../../assets/img/Customer=Arthur.png'
 import davidImg from '../../assets/img/Customer=David Farrington.png'
@@ -852,13 +853,10 @@ export default function App() {
   // record clock keys off `step`, so leaving it on 'record' is what keeps
   // the timer running underneath, which is the whole point.
   const [backgrounded, setBackgrounded] = useState(false)
-  const [overlay, setOverlay] = useState(null) // null | 'uploading' | 'done'
   // Confirming a delete, requested from the paused/review screen — see
   // memory: carebridge-delete-recording for why this is its own button
-  // rather than the consent checkbox re-surfaced and unticked. A separate
-  // piece of state from `overlay` above: unrelated concerns (finishing vs.
-  // discarding), and this one needs a Cancel path back to Review rather
-  // than always resolving forward.
+  // rather than the consent checkbox re-surfaced and unticked. This one
+  // needs a Cancel path back to Review rather than always resolving forward.
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [entering] = useState(() =>
     new URLSearchParams(window.location.search).get('transition') === '1'
@@ -928,13 +926,19 @@ export default function App() {
 
   const pickCustomer = (c) => { setCustomer(c); setTemplate(null); setExtraTemplates([]); setConsent(false); setSeconds(0); setTitle(''); setStep('template') }
   const pickTemplate = (t) => { setTemplate(t); setExtraTemplates([]); setConsent(false); setSeconds(0); setTitle(''); setStep('consent') }
-  const finish = () => { setOverlay('uploading'); setTimeout(() => setOverlay('done'), 1700) }
+  // No blocking "uploading" modal — the app can't rely on a user staying put
+  // for one, especially on a poor connection. Write the recording as queued
+  // and leave immediately; the Recordings list on the far end is the
+  // confirmation. See memory: project_carebridge_mobile.
+  const finish = () => {
+    addRecording(customer?.id || 'arthur', { title: title || docsLabel })
+    window.location.href = deepLink ? `${entryPointHref}?showRecordings=1` : entryPointHref
+  }
 
   // Android's system back exists on every screen whether or not the app
   // draws its own affordance. Transient surfaces register as back layers so
   // they're dismissed one press at a time; the step machine below is the
   // fallback for when there's nothing overlaid.
-  useBackHandler(!!overlay, () => {})            // modal — swallow, don't skip past it
   useBackHandler(backgrounded, () => {})         // already at the home screen
   useBackHandler(locked, () => setLocked(false))
 
@@ -991,42 +995,6 @@ export default function App() {
 
           {backgrounded && step === 'record' && (
             <BackgroundedScreen customer={customer} seconds={seconds} onReturn={() => setBackgrounded(false)} />
-          )}
-
-          {overlay && (
-            <div className="cb-overlay">
-              <div className="cb-overlay-card">
-                {overlay === 'uploading' && (
-                  <>
-                    <div className="cb-spinner" />
-                    <div className="cb-overlay-title">Uploading recording…</div>
-                    <div className="cb-overlay-text">Sending {customer?.name.split(' ')[0]}’s assessment to PASS.</div>
-                  </>
-                )}
-                {overlay === 'done' && (
-                  <>
-                    <div className="cb-success-icon"><CheckIcon /></div>
-                    <div className="cb-overlay-title">Sent to PASS</div>
-                    {title && <div className="cb-overlay-subtitle">“{title}”</div>}
-                    <div className="cb-overlay-text">
-                      CareBridge has drafted {customer?.name.split(' ')[0]}’s {docsLabel}.
-                      Write up the care plan, risk assessments and templates in PASS.
-                    </div>
-                    {/* iOS gets a full-width filled button; Material puts a
-                        dialog's action as a text button in a bottom-end row.
-                        Same handler either way — see .cb-overlay-actions. */}
-                    <div className="cb-overlay-actions">
-                      <button
-                        className="round-btn primary-btn cb-full-btn"
-                        onClick={() => { window.location.href = entryPointHref }}
-                      >
-                        Done
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
           )}
 
           {confirmingDelete && (

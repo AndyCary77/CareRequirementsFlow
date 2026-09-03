@@ -4,6 +4,7 @@ import ScreenSlider from '../../assets/ScreenSlider'
 import PhoneFrame from '../../assets/PhoneFrame'
 import CareBridgeIcon from '../../assets/CareBridgeIcon'
 import { handleSystemBack, useBackHandler } from '../../assets/backStack'
+import { useRecordings } from '../../assets/recordings'
 import {
   CUSTOMER, ASSESSMENTS, ASSESSMENT_FOLDERS, OPTIONAL_ASSESSMENT_TEMPLATES,
   OTHER_DOCUMENTS, OTHER_DOCUMENT_FOLDERS, DOCUMENT_TEMPLATES,
@@ -830,6 +831,13 @@ function FolderDetailScreen({ folder, items, renderRow, selecting, selectedCount
 // ─── Level 1: DocumentsRootScreen ────────────────────────────────────
 
 function DocumentsRootScreen({ onOpenSection, onOpenCareBridge }) {
+  const recordings = useRecordings('arthur')
+  // Auto-expand only on the return trip from finishing a recording — a
+  // one-shot read at mount (not re-consulted on re-render), so the section
+  // stays user-controlled — collapsible again — after that first look.
+  const [showRecordings] = useState(() =>
+    new URLSearchParams(window.location.search).get('showRecordings') === '1'
+  )
   return (
     <div className="screen">
       <StatusBar />
@@ -874,6 +882,8 @@ function DocumentsRootScreen({ onOpenSection, onOpenCareBridge }) {
       </div>
 
       <CareBridgeBanner onSelect={onOpenCareBridge} />
+
+      <RecordingsSection recordings={recordings} initialExpanded={showRecordings} />
 
       <div className="docs-section-list">
         <button className="docs-section-row" onClick={() => onOpenSection('assessments')}>
@@ -961,6 +971,42 @@ function CareBridgeBanner({ onSelect }) {
           <CareBridgeIcon size={16} /> Select documents
         </button>
       </div>
+    </div>
+  )
+}
+
+// A persistent, collapsible record of what's been captured with CareBridge
+// for this customer and whether it's made it to PASS yet — the destination
+// of the old blocking "Uploading… / Sent to PASS" modal (see memory:
+// project_carebridge_mobile). Auto-expanded on the trip back right after
+// finishing a recording (`initialExpanded`); otherwise sits collapsed,
+// since it's useful on any visit, not just the one that just finished.
+function RecordingsSection({ recordings, initialExpanded }) {
+  const [expanded, setExpanded] = useState(initialExpanded)
+  return (
+    <div className="docs-recordings">
+      <button type="button" className="docs-recordings-header" onClick={() => setExpanded(e => !e)}>
+        <span className="docs-recordings-title">Recordings</span>
+        <span className="docs-recordings-count">{recordings.length}</span>
+        <span className={`docs-recordings-chevron${expanded ? ' docs-recordings-chevron--open' : ''}`}>
+          <ChevronRightIcon size={16} />
+        </span>
+      </button>
+      {expanded && (
+        <div className="docs-recordings-list">
+          {recordings.length === 0 ? (
+            <div className="docs-recordings-empty">No recordings yet.</div>
+          ) : recordings.map(rec => (
+            <div key={rec.id} className="docs-recording-row">
+              <span className="docs-recording-row-icon"><CareBridgeIcon size={16} /></span>
+              <span className="docs-recording-row-title">{rec.title}</span>
+              <span className={`docs-recording-badge docs-recording-badge--${rec.status}`}>
+                {rec.status === 'uploaded' ? 'Uploaded' : 'Queued'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

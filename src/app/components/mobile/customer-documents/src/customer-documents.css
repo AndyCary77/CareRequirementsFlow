@@ -488,6 +488,112 @@
   cursor: pointer;
 }
 
+/* Recordings — a persistent, collapsible record of what's been captured
+   with CareBridge and whether it's reached PASS yet. Replaces the old
+   blocking "Uploading… / Sent to PASS" modal: finishing a recording lands
+   back here instead, with this section auto-expanded to show it queued.
+   Shell matches .docs-cb-banner just above it (same border/radius/card
+   language); the status pill reuses carebridge's own .cb-sec-badge
+   amber/green pairing (same --rag-amber-*/--rag-green-* tokens) so
+   "pending vs done" reads the same way in both mini-apps. */
+.docs-recordings {
+  margin: 4px 16px 4px;
+  border: 1px solid var(--ui-purple-4-lavendar);
+  border-radius: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #fff;
+}
+.docs-recordings-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  padding: 10px 12px;
+  font-family: Barlow, sans-serif;
+  cursor: pointer;
+  text-align: left;
+}
+.docs-recordings-title {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--brand-purple-1-purple-0);
+}
+.docs-recordings-count {
+  flex-shrink: 0;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--brand-purple-8-purple-10);
+  color: var(--brand-purple-6-purple-4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+.docs-recordings-chevron {
+  flex-shrink: 0;
+  display: flex;
+  color: var(--greyscale-6-grey-50);
+  transition: transform 0.15s ease;
+}
+.docs-recordings-chevron--open { transform: rotate(90deg); }
+.docs-recordings-list { border-top: 1px solid var(--ui-purple-6-lavendar-grey); }
+.docs-recordings-empty {
+  padding: 12px;
+  font-family: Barlow, sans-serif;
+  font-size: 13px;
+  color: var(--greyscale-6-grey-50);
+}
+.docs-recording-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--ui-purple-6-lavendar-grey);
+}
+.docs-recording-row:last-child { border-bottom: none; }
+.docs-recording-row-icon {
+  flex-shrink: 0;
+  color: var(--brand-purple-6-purple-4);
+  display: flex;
+}
+.docs-recording-row-title {
+  flex: 1;
+  min-width: 0;
+  font-family: Barlow, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #000;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.docs-recording-badge {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 10px;
+  border-radius: 11px;
+  font-family: Barlow, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+}
+.docs-recording-badge--uploaded {
+  background: var(--rag-green-green-lightest);
+  color: var(--rag-green-green-4);
+}
+.docs-recording-badge--queued {
+  background: var(--rag-amber-amber-lightest);
+  color: var(--rag-amber-amber-6);
+}
+
 /* CareBridgeSelectScreen — the document picker itself: an intro line above
    the same doc-row list Assessments already uses, so the checkboxes read
    as a familiar Assessments-style list rather than a new pattern. */

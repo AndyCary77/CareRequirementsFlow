@@ -260,9 +260,9 @@
 .cb-mic-check {
   box-sizing: border-box;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
   width: calc(100% - 40px);
   margin: 4px 20px 0;
   padding: 12px 14px;
@@ -275,6 +275,13 @@
 .cb-mic-check.ok {
   border-color: var(--rag-green-green-4);
   background: var(--rag-green-green-lightest);
+}
+
+.cb-mic-check-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .cb-mic-check-main {
@@ -303,14 +310,11 @@
   color: #222;
 }
 
-.cb-mic-check-d {
-  font-family: Barlow, sans-serif;
-  font-size: 12px;
-  color: var(--greyscale-5-grey-45);
-}
-
 .cb-mic-check-btn {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-family: Barlow, sans-serif;
   font-size: 13px;
   font-weight: 600;
@@ -321,35 +325,42 @@
   cursor: pointer;
   white-space: nowrap;
 }
+/* Listen-back uses the same green as the "sounds good" card it lives in
+   (.cb-mic-check.ok), rather than the purple used for the "Test
+   microphone" action it replaces — it's confirming the same successful
+   test, not offering a new action. */
+.cb-mic-check.ok .cb-mic-check-btn { color: var(--rag-green-green-4); }
 
 .cb-mic-check-btn:disabled { cursor: default; }
 
-.cb-mic-bars {
+/* Try again / Listen back — icon-only round buttons, once there are two
+   actions to fit rather than one. Same green as the rest of the "ok" card;
+   a light fill on the play/pause button (not on retry) marks it as the
+   primary of the two without needing a text label to say so. */
+.cb-mic-check-actions {
+  flex-shrink: 0;
   display: flex;
-  align-items: flex-end;
-  gap: 3px;
-  height: 16px;
-  padding: 0 6px;
+  align-items: center;
+  gap: 8px;
 }
-
-.cb-mic-bars span {
-  width: 3px;
-  border-radius: 2px;
-  background: var(--brand-purple-6-purple-4);
-  animation: cbMicLevel 0.9s ease-in-out infinite;
-  transform-origin: bottom;
+.cb-mic-icon-btn {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: none;
+  background: none;
+  color: var(--rag-green-green-4);
+  cursor: pointer;
+  padding: 0;
 }
-
-.cb-mic-bars span:nth-child(1) { height: 6px; animation-delay: 0s; }
-.cb-mic-bars span:nth-child(2) { height: 12px; animation-delay: 0.15s; }
-.cb-mic-bars span:nth-child(3) { height: 16px; animation-delay: 0.3s; }
-.cb-mic-bars span:nth-child(4) { height: 10px; animation-delay: 0.45s; }
-.cb-mic-bars span:nth-child(5) { height: 14px; animation-delay: 0.6s; }
-
-@keyframes cbMicLevel {
-  0%, 100% { transform: scaleY(0.4); }
-  50% { transform: scaleY(1); }
-}
+/* Deliberately not --rag-green-green-lightest — that's already the card's
+   own background, so it'd be invisible as a highlight against it. */
+.cb-mic-icon-btn:last-child { background: var(--rag-green-green-muted-banner); }
+.cb-mic-icon-btn:active { opacity: 0.7; }
 
 .cb-consent-confirm {
   display: flex;
@@ -540,6 +551,21 @@
   height: 48px;
   width: 260px;
   margin-top: 16px;
+}
+
+/* Same 36-bar shape at exactly half scale (width, height, bar width, gap,
+   radius all ×0.5) — the mic-check card has nowhere near 260px to spare,
+   but the ratio that makes it recognisably the same waveform stays intact. */
+.cb-live-wave--small {
+  flex-shrink: 0;
+  gap: 1.5px;
+  height: 24px;
+  width: 130px;
+  margin-top: 0;
+}
+.cb-live-wave--small .cb-live-wave-bar {
+  width: 2px;
+  border-radius: 1px;
 }
 
 .cb-live-wave-bar {

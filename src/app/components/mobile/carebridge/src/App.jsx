@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import PhoneFrame from '../../assets/PhoneFrame'
 import StatusBar from '../../assets/StatusBar'
 import AppHeader from '../../assets/AppHeader'
@@ -33,6 +33,17 @@ const PauseIcon = ({ size = 20 }) => (
     <rect x="14" y="5" width="4" height="14" rx="1"/>
   </svg>
 )
+const PlayIcon = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M8 5v14l11-7z"/>
+  </svg>
+)
+const RetryIcon = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <path d="M4 12a8 8 0 0114-5.3M20 12a8 8 0 01-14 5.3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    <path d="M18 3v4h-4M6 21v-4h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+)
 const SearchIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
     <path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
@@ -58,11 +69,6 @@ const MicIcon = ({ size = 18 }) => (
     <path d="M12 15a3 3 0 003-3V6a3 3 0 10-6 0v6a3 3 0 003 3z" stroke="currentColor" strokeWidth="1.6"/>
     <path d="M19 11a7 7 0 01-14 0M12 18v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
   </svg>
-)
-const MicLevelBars = () => (
-  <span className="cb-mic-bars">
-    <span /><span /><span /><span /><span />
-  </span>
 )
 // A live level-meter, not a pre-recorded clip: every bar stays in its own
 // fixed slot and pulses in place, the way a real "recording…" indicator
@@ -100,20 +106,32 @@ const GROUP_SIZE = 3
 const GROUP_DELAYS = [0, -0.6, -0.3, -0.75, -0.15, -0.5, -0.9, -0.2, -0.65, -0.4, -0.1, -0.55]
 const GROUP_DURATIONS = [0.7, 0.85, 0.65, 0.95, 0.75, 0.8]
 const BAR_JITTER = [0, -0.04, -0.08]
-const LiveWaveform = () => (
-  <div className="cb-live-wave" role="img" aria-label="CareBridge is listening">
+// `size="small"` is the same 36-bar shape at half scale (see
+// .cb-live-wave--small) — reused as-is on Consent's mic-check card rather
+// than a second waveform built from scratch, so "this is what CareBridge
+// will sound like recording" and "this is what you just heard back" are
+// visibly the same visual language.
+//
+// `playing` defaults to true for the record screen's own always-live use.
+// When false (the mic-check test, before/after playback), no animation
+// name is applied at all — bars sit at their plain authored height, a
+// static snapshot of the clip's shape, rather than freezing mid-pulse at
+// an arbitrary transform value, which would look broken, not paused.
+const LiveWaveform = ({ size, playing = true, label = 'CareBridge is listening' }) => (
+  <div className={`cb-live-wave${size === 'small' ? ' cb-live-wave--small' : ''}`} role="img" aria-label={label}>
     {WAVE_HEIGHTS.map((h, i) => {
       const quiet = QUIET_INDICES.has(i)
       const group = Math.floor(i / GROUP_SIZE)
+      const toneClass = quiet ? 'cb-live-wave-bar--quiet' : `cb-live-wave-bar--${(group % 3) + 1}`
       return (
         <span
           key={i}
-          className={`cb-live-wave-bar ${quiet ? 'cb-live-wave-bar--quiet' : `cb-live-wave-bar--${(group % 3) + 1}`}`}
-          style={{
+          className={`cb-live-wave-bar${playing ? ' ' + toneClass : ''}`}
+          style={playing ? {
             height: `${h}px`,
             animationDuration: quiet ? '1.6s' : `${GROUP_DURATIONS[group % GROUP_DURATIONS.length]}s`,
             animationDelay: `${GROUP_DELAYS[group % GROUP_DELAYS.length] + BAR_JITTER[i % BAR_JITTER.length]}s`,
-          }}
+          } : { height: `${h}px` }}
         />
       )
     })}
@@ -394,10 +412,38 @@ function ConsentScreen({ customer, template, docsLabel, consent, setConsent, onB
   const first = customer?.name.split(' ')[0] || 'the customer'
   const [platform] = usePlatform()
   const [micTest, setMicTest] = useState('idle') // idle | testing | ok
+  // Whether the seeded test clip (public/audio-test.m4a — a stand-in for
+  // "what was just recorded", since there's no real capture here) is
+  // currently playing back, so the reviewer can actually hear the mic
+  // worked rather than just being told so.
+  const [playingBack, setPlayingBack] = useState(false)
+  const audioRef = useRef(null)
   // The screen stays mounted across a template switch (all steps render in a
   // single sliding track), so reset the test whenever a fresh visit begins.
-  useEffect(() => { setMicTest('idle') }, [template])
+  useEffect(() => {
+    setMicTest('idle')
+    setPlayingBack(false)
+    audioRef.current?.pause()
+  }, [template])
   const testMic = () => { setMicTest('testing'); setTimeout(() => setMicTest('ok'), 1400) }
+  // Re-runs the test from scratch — stop any playback in progress first, so
+  // it can't keep playing under the new "testing" state.
+  const retryMicTest = () => {
+    audioRef.current?.pause()
+    setPlayingBack(false)
+    testMic()
+  }
+  const toggleListenBack = () => {
+    const audio = audioRef.current
+    if (!audio) return
+    if (playingBack) {
+      audio.pause()
+    } else {
+      audio.currentTime = 0
+      audio.play()
+    }
+    setPlayingBack(p => !p)
+  }
   return (
     <div className="cb-screen">
       <StatusBar />
@@ -435,18 +481,51 @@ function ConsentScreen({ customer, template, docsLabel, consent, setConsent, onB
         </div>
 
         <div className={`cb-mic-check${micTest === 'ok' ? ' ok' : ''}`}>
-          <div className="cb-mic-check-main">
-            <span className="cb-mic-check-icon">{micTest === 'ok' ? <CheckIcon /> : <MicIcon />}</span>
-            <div>
-              <div className="cb-mic-check-t">{micTest === 'ok' ? 'Microphone sounds good' : 'Check your microphone'}</div>
-              {micTest === 'testing' && <div className="cb-mic-check-d">Say something…</div>}
+          <div className="cb-mic-check-row">
+            <div className="cb-mic-check-main">
+              <span className="cb-mic-check-icon">{micTest === 'ok' ? <CheckIcon /> : <MicIcon />}</span>
+              {micTest === 'idle' ? (
+                <div className="cb-mic-check-t">Check your microphone</div>
+              ) : (
+                // One waveform, not two different bar treatments — it
+                // pulses live while actually testing, the same visual
+                // language "Listen back" reuses below rather than a
+                // separate 5-bar meter. Replaces the "Microphone sounds
+                // good" / "Say something…" copy entirely: a live mic level
+                // and a playable clip both show their own state better
+                // than a caption next to them would.
+                <LiveWaveform
+                  size="small"
+                  playing={micTest === 'testing' || playingBack}
+                  label={micTest === 'testing' ? 'Testing microphone' : 'Recording preview'}
+                />
+              )}
             </div>
+            {micTest === 'ok' ? (
+              // Retry keeps a text label — a redo glyph alone reads as
+              // ambiguous (sync? reload?) in a way play/pause doesn't, and
+              // "Test again" matches the idle state's own "Test microphone"
+              // verb rather than introducing a second one ("Try"). Play/
+              // pause stays icon-only: there's still no ambiguity there,
+              // and it's the one place condensing actually matters.
+              <div className="cb-mic-check-actions">
+                <button className="cb-mic-check-btn cb-mic-retry-btn" onClick={retryMicTest}>
+                  <RetryIcon size={13} /> Test again
+                </button>
+                <button className="cb-mic-icon-btn" onClick={toggleListenBack} aria-label={playingBack ? 'Pause' : 'Listen back'}>
+                  {playingBack ? <PauseIcon size={15} /> : <PlayIcon size={15} />}
+                </button>
+              </div>
+            ) : (
+              <button className="cb-mic-check-btn" disabled={micTest === 'testing'} onClick={testMic}>
+                {micTest === 'testing' ? 'Testing…' : 'Test microphone'}
+              </button>
+            )}
           </div>
-          {micTest !== 'ok' && (
-            <button className="cb-mic-check-btn" disabled={micTest === 'testing'} onClick={testMic}>
-              {micTest === 'testing' ? <MicLevelBars /> : 'Test microphone'}
-            </button>
-          )}
+          {/* Stand-in for "what was just recorded" — there's no real
+              capture in this prototype, so the test always plays back the
+              same seeded clip regardless of what was actually said. */}
+          <audio ref={audioRef} src="/audio-test.m4a" onEnded={() => setPlayingBack(false)} />
         </div>
 
         <button className={`cb-consent-confirm${consent ? ' on' : ''}`} onClick={() => setConsent(c => !c)}>

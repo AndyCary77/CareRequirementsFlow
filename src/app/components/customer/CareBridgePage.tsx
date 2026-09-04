@@ -2063,19 +2063,19 @@ function NoCareBridgeContent({ context }: { context: 'careplan' | 'recording' })
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-lg font-semibold text-purple-900">
-              {context === 'careplan' ? 'No CareBridge draft care plan' : 'No recordings yet'}
+              {context === 'careplan' ? 'No Assessment Hero draft care plan' : 'No recordings yet'}
             </p>
             <p className="text-sm text-purple-800 mt-0.5">
               {context === 'careplan' ? (
                 <>
-                  Nothing has been recorded for {firstName}, so CareBridge has no assessment to draft a care plan
+                  Nothing has been recorded for {firstName}, so Assessment Hero has no assessment to draft a care plan
                   from. Record one and the outcomes and tasks are drafted for you to review — or draft the care plan
                   manually and write it up yourself in Care Management.
                 </>
               ) : (
                 <>
-                  No assessment or review has been recorded for {firstName} through CareBridge. Record one, or upload
-                  an existing audio file, and CareBridge drafts the paperwork from it.
+                  No assessment or review has been recorded for {firstName} through Assessment Hero. Record one, or upload
+                  an existing audio file, and Assessment Hero drafts the paperwork from it.
                 </>
               )}
             </p>
@@ -2118,7 +2118,7 @@ function EmptyDraftPanel({ Icon, title, accent }: { Icon: React.ComponentType<{ 
       </div>
       <p className="text-base font-semibold text-gray-900">{title}</p>
       <p className="text-sm text-gray-500 mt-1">
-        None suggested yet — CareBridge fills these in from a recorded assessment.
+        None suggested yet — Assessment Hero fills these in from a recorded assessment.
       </p>
     </div>
   );
@@ -2336,14 +2336,14 @@ function ChatPanel({ chat, onClose }: { chat: ChatMessage[]; onClose: () => void
           <Sparkles className="w-4 h-4 text-[rgb(154,38,214)]" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-gray-900 leading-tight">CareBridge Assistant</p>
+          <p className="text-sm font-semibold text-gray-900 leading-tight">Assessment Hero Assistant</p>
           <p className="text-sm text-gray-500 leading-tight">Refine any section or ask for detail</p>
         </div>
         <button
           type="button"
           onClick={onClose}
           className="p-1.5 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors cursor-pointer flex-shrink-0"
-          aria-label="Hide CareBridge Assistant"
+          aria-label="Hide Assessment Hero Assistant"
         >
           <X className="w-4 h-4" />
         </button>
@@ -2387,7 +2387,7 @@ function ChatPanel({ chat, onClose }: { chat: ChatMessage[]; onClose: () => void
         <div className="flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 pl-4 pr-1.5 py-1.5 focus-within:border-[rgb(154,38,214)] focus-within:ring-1 focus-within:ring-[rgb(154,38,214)]">
           <input
             type="text"
-            placeholder="Ask CareBridge to refine a section…"
+            placeholder="Ask Assessment Hero to refine a section…"
             className="flex-1 bg-transparent text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
           />
           <button className="w-8 h-8 rounded-full bg-[rgb(154,38,214)] text-white flex items-center justify-center hover:bg-[rgb(130,28,190)] transition-colors cursor-pointer flex-shrink-0">
@@ -2681,7 +2681,7 @@ export function CareBridgePage() {
           type="button"
           onClick={() => setChatOpen(true)}
           className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-[rgb(154,38,214)] text-white shadow-lg hover:bg-[rgb(130,28,190)] transition-colors cursor-pointer flex items-center justify-center"
-          aria-label="Open CareBridge Assistant"
+          aria-label="Open Assessment Hero Assistant"
         >
           <Sparkles className="w-6 h-6" />
         </button>

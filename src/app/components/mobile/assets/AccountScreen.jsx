@@ -149,7 +149,7 @@ export default function AccountScreen({ onGoToMessages, onGoToMileage, messagesU
         <div className="menu-rows-card">
           <MenuRow
             icon={<CareBridgeIcon />}
-            label="CareBridge"
+            label="Assessment Hero"
             onClick={() => { window.location.href = '../carebridge/?transition=1' }}
             right={
               <>

@@ -13,7 +13,7 @@ export function DocumentTabs({ activeTab, onTabChange }: DocumentTabsProps) {
 
   const tabs = [
     { id: 'enquiry', label: 'Enquiry' },
-    { id: 'carebridge', label: 'CareBridge', badge: newRecordingsCount },
+    { id: 'carebridge', label: 'Assessment Hero', badge: newRecordingsCount },
     { id: 'assessments', label: 'Assessments' },
     { id: 'documents', label: 'Documents' },
     { id: 'files', label: 'Files' },

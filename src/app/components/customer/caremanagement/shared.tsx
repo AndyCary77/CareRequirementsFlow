@@ -78,7 +78,7 @@ export function DiscardButton({ onDiscard, itemLabel }: { onDiscard: () => void;
         <AlertDialogHeader>
           <AlertDialogTitle>Discard this {itemLabel}?</AlertDialogTitle>
           <AlertDialogDescription>
-            CareBridge suggested this from a recording. Discarding it removes the suggestion for
+            Assessment Hero suggested this from a recording. Discarding it removes the suggestion for
             good — it won't be added to the care plan, and there's no way to bring it back once
             it's gone.
           </AlertDialogDescription>
@@ -162,7 +162,7 @@ export function DraftActionBar({
       }`}
     >
       <span className="text-xs text-amber-800">
-        {source ? `Drafted by CareBridge from ${source}` : 'Drafted by CareBridge'}
+        {source ? `Drafted by Assessment Hero from ${source}` : 'Drafted by Assessment Hero'}
       </span>
       <div className="flex items-center gap-4">
         <AcceptButton onAccept={onAccept} />
@@ -267,7 +267,7 @@ export function CarePlanDraftBanner({
         <div className="flex-1 min-w-0">
           <p className="text-base font-semibold text-[rgb(12,77,12)]">Care plan published</p>
           <p className="text-sm text-[rgb(16,100,16)] mt-0.5">
-            This is now a real care plan, not a CareBridge draft — it's included in reports and reviews the same as
+            This is now a real care plan, not an Assessment Hero draft — it's included in reports and reviews the same as
             any other.
           </p>
         </div>
@@ -309,7 +309,7 @@ export function CarePlanDraftBanner({
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-lg font-semibold text-purple-900 flex items-center gap-2 flex-wrap">
-            CareBridge draft care plan
+            Assessment Hero draft care plan
             {total > 0 && (
               <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
                 {total} to review
@@ -489,7 +489,7 @@ export function CarePlanDraftFlow() {
             <Sparkles className="w-4 h-4 text-[rgb(154,38,214)]" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-base font-semibold text-purple-900">Draft this care plan with CareBridge</p>
+            <p className="text-base font-semibold text-purple-900">Draft this care plan with Assessment Hero</p>
             <p className="text-sm text-purple-800 mt-0.5">
               Select completed assessments and documents to draft outcomes and tasks for this care plan. You can review and edit the drafts before accepting them.
             </p>
@@ -542,7 +542,7 @@ function CarePlanDraftSourcePicker({
         <DialogHeader>
           <DialogTitle>Draft care plan from completed documents</DialogTitle>
           <DialogDescription>
-            Choose which completed documents CareBridge should draft the outcomes and tasks from.
+            Choose which completed documents Assessment Hero should draft the outcomes and tasks from.
           </DialogDescription>
         </DialogHeader>
 

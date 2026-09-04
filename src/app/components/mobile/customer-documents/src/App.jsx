@@ -963,7 +963,7 @@ function CareBridgeBanner({ onSelect }) {
       <div className="docs-cb-banner-top">
         <span className="docs-cb-banner-icon"><CareBridgeIcon size={18} /></span>
         <div className="docs-cb-banner-body">
-          <p className="docs-cb-banner-title">Record and Draft with CareBridge</p>
+          <p className="docs-cb-banner-title">Record and Draft with Assessment Hero</p>
         </div>
       </div>
       <div className="docs-cb-banner-cta-row">
@@ -1094,7 +1094,7 @@ function CareBridgeSelectScreen({ assessments, documents, onContinue, onClose })
           <span className="app-header-title">Select documents</span>
           <div style={{ width: 36 }} />
         </div>
-        <p className="docs-cb-select-intro">Choose which documents this recording is for — CareBridge drafts each one from the conversation.</p>
+        <p className="docs-cb-select-intro">Choose which documents this recording is for — Assessment Hero drafts each one from the conversation.</p>
         <div className="docs-screen-body">
           {eligibleAssessments.length === 0 && eligibleDocuments.length === 0 ? (
             <div className="docs-empty-state">No completed documents to record against yet.</div>

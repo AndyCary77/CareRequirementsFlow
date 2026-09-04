@@ -38,14 +38,14 @@ interface FeatureToggle {
 const FEATURE_TOGGLES: FeatureToggle[] = [
   {
     flag: 'customerCareBridgeTab',
-    label: 'Customer CareBridge tab',
+    label: 'Customer Assessment Hero tab',
     status: 'Deprecated',
     // Worded neutrally rather than "it's off because…" — the same sentence
     // has to read correctly with the switch in either position.
     description: (
       <>
-        Shows the standalone CareBridge tab on a customer's profile. That tab is retired: CareBridge is now managed per
-        section, with recordings under <strong>Documents → CareBridge</strong> linked to the assessment, document or
+        Shows the standalone Assessment Hero tab on a customer's profile. That tab is retired: Assessment Hero is now managed per
+        section, with recordings under <strong>Documents → Assessment Hero</strong> linked to the assessment, document or
         care management content they draft, so each draft is reviewed where that content lives. Switch this on to
         review the old tab.
       </>

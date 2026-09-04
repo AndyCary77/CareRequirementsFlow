@@ -118,7 +118,7 @@ const BAR_JITTER = [0, -0.04, -0.08]
 // name is applied at all — bars sit at their plain authored height, a
 // static snapshot of the clip's shape, rather than freezing mid-pulse at
 // an arbitrary transform value, which would look broken, not paused.
-const LiveWaveform = ({ size, playing = true, label = 'CareBridge is listening' }) => (
+const LiveWaveform = ({ size, playing = true, label = 'Assessment Hero is listening' }) => (
   <div className={`cb-live-wave${size === 'small' ? ' cb-live-wave--small' : ''}`} role="img" aria-label={label}>
     {WAVE_HEIGHTS.map((h, i) => {
       const quiet = QUIET_INDICES.has(i)
@@ -451,7 +451,7 @@ function ConsentScreen({ customer, template, docsLabel, consent, setConsent, onB
       <AppHeader title="Consent to Record" onBack={onBack} />
       <div className="cb-body cb-body-flush">
         <div className="cb-consent-intro">
-          With consent, <strong>CareBridge</strong> records the conversation and fills
+          With consent, <strong>Assessment Hero</strong> records the conversation and fills
           in the {docsLabel} as you talk — so you can focus on {first}, not paperwork.
         </div>
 
@@ -636,7 +636,7 @@ function LockScreen({ customer, seconds, onUnlock }) {
         <div className="cb-lock-notif" onClick={e => e.stopPropagation()}>
           <div className="cb-lock-notif-app">
             <span className="cb-lock-notif-icon"><CareBridgeIcon size={12} /></span>
-            <span className="cb-lock-notif-appname">CareBridge</span>
+            <span className="cb-lock-notif-appname">Assessment Hero</span>
             <span className="cb-lock-notif-sep">•</span>
             <span className="cb-lock-notif-elapsed">{fmt(seconds)}</span>
           </div>
@@ -676,7 +676,7 @@ function LockScreen({ customer, seconds, onUnlock }) {
       <div className="cb-lock-activity">
         <div className="cb-lock-activity-row">
           <span className="cb-lock-activity-app">{customer?.name || 'Assessment'}</span>
-          <span className="cb-lock-activity-brand"><CareBridgeIcon size={12} /> CareBridge</span>
+          <span className="cb-lock-activity-brand"><CareBridgeIcon size={12} /> Assessment Hero</span>
         </div>
         <div className="cb-lock-activity-headline">
           <span className="cb-lock-dot" />
@@ -720,7 +720,7 @@ function BackgroundedScreen({ customer, seconds, onReturn }) {
       <button type="button" className="cb-lock-notif cb-bg-notif" onClick={onReturn}>
         <div className="cb-lock-notif-app">
           <span className="cb-lock-notif-icon"><CareBridgeIcon size={12} /></span>
-          <span className="cb-lock-notif-appname">CareBridge</span>
+          <span className="cb-lock-notif-appname">Assessment Hero</span>
           <span className="cb-lock-notif-sep">•</span>
           <span className="cb-lock-notif-elapsed">{fmt(seconds)}</span>
         </div>
@@ -759,7 +759,7 @@ function ReviewScreen({ customer, template, seconds, states, title, setTitle, on
             {SHOW_COMPLETION_CHECKLIST ? (
               <>
                 <div className="cb-review-title">{completeCount} of {states.length} sections complete</div>
-                <div className="cb-review-sub">CareBridge filled {capturedFields} of {totalFields} fields · {fmt(seconds)} recorded</div>
+                <div className="cb-review-sub">Assessment Hero filled {capturedFields} of {totalFields} fields · {fmt(seconds)} recorded</div>
               </>
             ) : (
               <>

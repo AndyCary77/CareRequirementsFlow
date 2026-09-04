@@ -174,7 +174,7 @@ export function CustomerInfo({ withSlideOffset = false }: { withSlideOffset?: bo
                 section now, with the recordings under Documents. Kept behind
                 the Admin feature switch so it can still be reviewed. */}
             {showCareBridgeTab && (
-              <Link to={`${base}/carebridge`} className={tabClass(pathname, `${base}/carebridge`)}>CareBridge</Link>
+              <Link to={`${base}/carebridge`} className={tabClass(pathname, `${base}/carebridge`)}>Assessment Hero</Link>
             )}
             <Link to={`${base}/caremanagement`} className={tabClass(pathname, `${base}/caremanagement`)}>Care Management</Link>
             <DropdownTab

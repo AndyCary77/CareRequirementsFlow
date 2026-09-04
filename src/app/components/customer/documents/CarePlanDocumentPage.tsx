@@ -198,7 +198,7 @@ export function CarePlanDocumentContent() {
           <div>
             <p className="text-lg font-semibold text-[rgb(12,77,12)]">Published</p>
             <p className="text-sm text-[rgb(16,100,16)] mt-0.5">
-              This document has been published from the CareBridge draft — it's now a saved document and is no
+              This document has been published from the Assessment Hero draft — it's now a saved document and is no
               longer tracked as a draft.
             </p>
           </div>
@@ -224,7 +224,7 @@ export function CarePlanDocumentContent() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-lg font-semibold text-purple-900 flex items-center gap-2">
-                CareBridge Draft
+                Assessment Hero Draft
                 {pendingCount > 0 && (
                   <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
                     {pendingCount} {pendingCount === 1 ? 'field' : 'fields'} to review

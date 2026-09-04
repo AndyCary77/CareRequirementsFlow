@@ -81,10 +81,10 @@ export function DocumentsPage() {
             <object ref={passgeniusRef} type="image/svg+xml" data={passgeniusPurpleUrl} className="w-8 h-8" aria-label="PASSgenius" tabIndex={-1} />
           </div>
           <div>
-            <p className="text-lg font-semibold text-purple-900">CareBridge — a new home for assessment and customer recordings</p>
+            <p className="text-lg font-semibold text-purple-900">Assessment Hero — a new home for assessment and customer recordings</p>
             <p className="text-sm text-purple-800 mt-0.5">
               Every recording and transcript captured on the app for the customer lives here, giving a record of
-              what was actually said — so it can be checked against the text CareBridge drafted into the forms.
+              what was actually said — so it can be checked against the text Assessment Hero drafted into the forms.
             </p>
           </div>
         </div>

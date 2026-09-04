@@ -17,7 +17,7 @@ const SCREENS = [
     // Links straight into the Documents tab's click-throughs (the standalone
     // draft/recording pages) rather than the main CareBridge tab — that
     // older entry point has been superseded by this flow.
-    title: 'CareBridge — Drafts',
+    title: 'Assessment Hero — Drafts',
     items: [
       // Arthur's 'initial' recording has every field/section already
       // reviewed:true baked in, so it never shows any pending-review state —
@@ -36,7 +36,7 @@ const SCREENS = [
     ],
   },
   {
-    title: 'CareBridge — Recordings',
+    title: 'Assessment Hero — Recordings',
     items: [
       { label: 'What Is Important To Me — Follow-up — Edith Caldwell', to: '/customers/edith-caldwell/documents/recording/wiitm-followup' },
     ],
@@ -63,8 +63,8 @@ const MOBILE = [
     title: 'Mobile App',
     items: [
       { label: 'Account', to: '/src/app/components/mobile/account/' },
-      { label: 'CareBridge — Capture from documents', to: '/src/app/components/mobile/customer-documents/' },
-      { label: 'CareBridge — Assessment capture', to: '/src/app/components/mobile/carebridge/' },
+      { label: 'Assessment Hero — Capture from documents', to: '/src/app/components/mobile/customer-documents/' },
+      { label: 'Assessment Hero — Assessment capture', to: '/src/app/components/mobile/carebridge/' },
       { label: 'Messaging', to: '/src/app/components/mobile/messaging/' },
       { label: 'Mileage Pay', to: '/src/app/components/mobile/mileage-pay/' },
       { label: 'Notifications', to: '/src/app/components/mobile/notifications/' },
